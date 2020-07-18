@@ -1,5 +1,3 @@
-/connection/FTX/keys.env
-/connection/keys.env
-.keys.env
-.ipynb_checkpoints/
+
+.ipynb_checkpoints
 *.env
