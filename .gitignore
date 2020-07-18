@@ -2,3 +2,4 @@
 /connection/keys.env
 .keys.env
 ipynb_checkpoints/
+*.env
