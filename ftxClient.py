@@ -28,22 +28,38 @@ def connection(self, subaccount_name):
     return ftx
 
 
-process_new_order(ftx, market, side, price, type=ordType, size, clientId)
-
-
 def process_new_order(ftx: FtxCLient, market, side, price, type, clientId, stopPx, targetPx):
     cp.yellow("Process order started")
     if type == "limit" or type == "market":
-        ftx.place_order(market, side, price, size, type,)
+        ftx.place_order(market, side, price, size, type, clientId)
 
     elif type == "stop":
         ftx.place_conditional_order(
-            market, side, size, type=ordType, trigger_price=stopPx)
-    elif type == "takeProfit":
-        ftx.place_conditional_order
-    elif type == "trailingStop":
+            market, side, size, type=ordType, trigger_price=stopPx, clientId=clientId)
+    elif type == "take_profit":
+        ftx.place_conditional_order(market, side, size, type=ordType, targetPx, clientId=clientId)
+    elif type == "trailing":
 
         # Edit current order
+        #ftx.place_conditional_order(market=market,side=side,size=sizeSL,trigger_price = trigger_price_stoploss,type = typeStop)
+
+        #ftx.place_conditional_order(market=market,side=side,size=sizeTP,trigger_price = trigger_price_tp,type = typeTP)
+
+        # placing stoploss - STOP MARKET
+        # typeStop = 'stop'
+        # market=ftx.markets.get('XTZ')
+        # side = "sell"
+        # trigger_price_stoploss = 1.75
+        # sl_clientId = 'stoploss_order2'
+        # sizeSL = 1
+
+        # #placing target point - TAKE PROFIT MARKET
+        # typeTP = "take_profit"
+        # market = ftx.markets.get('XTZ')
+        # side = "sell"
+        # trigger_price_tp = 4.5
+        # tp_clientId = 'targetpoint_order4'
+        # sizeTP = 1
 
 
 def process_append_order(ftx: FtxCLient, orderID, origClOrdID, ordType, price, stopPx, targetPx, orderQty):
@@ -74,7 +90,7 @@ def parse_args():
     order_opts.add_argument('-s', '--side', type=str,
                             dest='side', help="Buy/Sell", choices=['buy', 'sell'], default="buy")
     order_opts.add_argument('-o', '--orderType', type=str, dest='orderType',
-                            help="Choose order type", choices=['limit', 'market', 'stop', 'takeProfit', 'trailingStop'], default="limit")
+                            help="Choose order type", choices=['limit', 'market', 'stop', 'take_profit', 'trailing'], default="limit")
     order_opts.add_argument('-qty', '--quantity', type=int,
                             dest='quantity', help="Quantity", nargs='?', const=0)
     order_opts.add_argument('-e', '--entry', type=int,

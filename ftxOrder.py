@@ -18,22 +18,24 @@ class FtxClient:
         "ATOM": "ATOM-PERP",
         "XTZ": "XTZ-PERP",
         "BTC": "BTC-PERP",
-        "ETH": "ETH-PERP",
-        "VET": "VET-PERP"
+        "ETH": "ETH-PERP"
 
     }
 
-    def __init__(self, subaccount_name=None, market) -> None:
+    def __init__(self, subaccount_name=None) -> None:
         self._session = Session()
         self._api_key = os.getenv('FTX_HUNTER_KEY')
         self._api_secret = os.getenv('FTX_HUNTER_SECRET')
         self._subaccount_name = subaccount_name
-        self.logger = logging.getLogger(__name__)
-        self.cp = ColorPrint()
-        self.market = markets[market]
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
         return self._request('GET', path, params=params)
+
+    def _post(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        return self._request('POST', path, json=params)
+
+    def _delete(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        return self._request('DELETE', path, json=params)
 
     def _request(self, method: str, path: str, **kwargs) -> Any:
         request = Request(method, self._ENDPOINT + path, **kwargs)
@@ -43,9 +45,7 @@ class FtxClient:
         response = self._session.send(request.prepare())
         # Clean up response
         result = self._process_response(response)
-        for item in result:
-            name = item['name']
-            self.cp.green(f'{name}')
+        logger.info(f'{result}')
 
     def _sign_request(self, request: Request) -> None:
         ts = int(time.time() * 1000)
@@ -81,11 +81,10 @@ class FtxClient:
 
     def list_markets(self) -> List[dict]:
         return self._get('markets')
-    # Placing limit/market buy/sell order ONLY
 
     def place_order(self, market: str, side: str, price: float, size: float, type: str = 'limit',
                     reduce_only: bool = False, ioc: bool = False, post_only: bool = False,
-                    client_id: str = None) -> dict:
+                    clientId: str = None) -> dict:
         return self._post('orders', {'market': market,
                                      'side': side,
                                      'price': price,
@@ -94,14 +93,13 @@ class FtxClient:
                                      'reduceOnly': reduce_only,
                                      'ioc': ioc,
                                      'postOnly': post_only,
-                                     'clientId': client_id,
+                                     'clientId': clientId,
                                      })
 
     def place_conditional_order(
-        self, market: str, side: str, size: float, type: str = 'stop',
-        limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
-        trigger_price: float = None, trail_value: float = None
-    ) -> dict:
+            self, market: str, side: str, size: float, type: str,
+            limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
+            trigger_price: float = None, trail_value: float = None, clientId: str = None) -> dict:
         """
         To send a Stop Market order, set type='stop' and supply a trigger_price
         To send a Stop Limit order, also supply a limit_price
@@ -116,8 +114,8 @@ class FtxClient:
 
         return self._post('conditional_orders',
                           {'market': market, 'side': side, 'triggerPrice': trigger_price,
-                           'size': size, 'reduceOnly': reduce_only, 'type': 'stop',
-                           'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price})
+                           'size': size, 'reduceOnly': reduce_only, 'type': type,
+                           'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
 
     def cancel_order(self, order_id: str) -> dict:
         return self._delete(f'orders/{order_id}')
@@ -128,3 +126,6 @@ class FtxClient:
                                         'conditionalOrdersOnly': conditional_orders,
                                         'limitOrdersOnly': limit_orders,
                                         })
+
+    def get_open_orders(self, market: str = None) -> List[dict]:
+        return self._get(f'orders', {'market': market})
