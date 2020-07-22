@@ -35,9 +35,10 @@ def process_new_order(ftx: FtxCLient, market, side, price, type, clientId, stopP
 
     elif type == "stop":
         ftx.place_conditional_order(
-            market, side, size, type=ordType, trigger_price=stopPx, clientId=clientId)
+            market=market, side=side, size=size, type=type, trigger_price=stopPx, clientId=clientId)
     elif type == "take_profit":
-        ftx.place_conditional_order(market, side, size, type=ordType, targetPx, clientId=clientId)
+        ftx.place_conditional_order(
+            market=market, side=side, size=size, type=type, trigger_price=targetPx, clientId=clientId)
     elif type == "trailing":
 
         # Edit current order
@@ -63,15 +64,29 @@ def process_new_order(ftx: FtxCLient, market, side, price, type, clientId, stopP
 
 
 def process_append_order(ftx: FtxCLient, orderID, origClOrdID, ordType, price, stopPx, targetPx, orderQty):
-    cp.yellow("Connecting to API orders")
+
+    cp.yellow("Appending orders started")
+    if ordType == "limit":
+
+        ftx.modify_order(existing_client_order_id=clientId,
+                         price=price, size=size)
+    elif ordType == "stop":
+        ftx.modify_order(existing_client_order_id=clientId,
+                         price=stopPx, size=orderQty)
+    elif type == "take_profit":
+        ftx.modify_order(existing_client_order_id=clientId,
+                         price=targetPx, size=orderQty)
 
 
-def process_get_order(ftx: FtxCLient,):
-    cp.yellow("Connecting to API orders")
+def process_get_order(ftx: FtxCLient, market):
+    cp.yellow("Get orders started")
+    ftx.get_open_orders(ftx.markets.get(market))
 
 
-def process_delete_all_order(ftx: FtxCLient,):
-    cp.yellow("Connecting to API orders")
+def process_delete_all_order(ftx: FtxCLient, market):
+    cp.yellow("Delete all orders started")
+    market_name = ftx.markets.get(market)
+    ftx.cancel_orders(market_name=market_name)
 
 
 def parse_args():
