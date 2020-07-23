@@ -11,7 +11,7 @@ import argparse
 from colorprint import ColorPrint
 from os.path import join, dirname
 from dotenv import load_dotenv, find_dotenv
-from ftxOrder import FtxCLient
+from ftxOrder import FtxClient
 
 
 path = './keys.env'
@@ -23,67 +23,48 @@ logger = logging.getLogger('LOGGER_NAME')
 # process new buy/sell order
 
 
-def connection(self, subaccount_name):
+def connection(subaccount_name="hunter-api"):
     ftx = FtxClient(subaccount_name)
     return ftx
 
 
-def process_new_order(ftx: FtxCLient, market, side, price, type, clientId, stopPx, targetPx):
+def process_new_order(ftx, market, side, price, orderQty, type, clientId, stopPx, targetPx):
     cp.yellow("Process order started")
+    clientId = f'{type}_{clientId}'
+    market = ftx.markets.get(market)
     if type == "limit" or type == "market":
-        ftx.place_order(market, side, price, size, type, clientId)
+
+        ftx.place_order(market, side, price, orderQty, type, clientId)
 
     elif type == "stop":
         ftx.place_conditional_order(
-            market=market, side=side, size=size, type=type, trigger_price=stopPx, clientId=clientId)
+            market, side, orderQty, type, stopPx, clientId)
     elif type == "take_profit":
         ftx.place_conditional_order(
-            market=market, side=side, size=size, type=type, trigger_price=targetPx, clientId=clientId)
-    elif type == "trailing":
-
-        # Edit current order
-        #ftx.place_conditional_order(market=market,side=side,size=sizeSL,trigger_price = trigger_price_stoploss,type = typeStop)
-
-        #ftx.place_conditional_order(market=market,side=side,size=sizeTP,trigger_price = trigger_price_tp,type = typeTP)
-
-        # placing stoploss - STOP MARKET
-        # typeStop = 'stop'
-        # market=ftx.markets.get('XTZ')
-        # side = "sell"
-        # trigger_price_stoploss = 1.75
-        # sl_clientId = 'stoploss_order2'
-        # sizeSL = 1
-
-        # #placing target point - TAKE PROFIT MARKET
-        # typeTP = "take_profit"
-        # market = ftx.markets.get('XTZ')
-        # side = "sell"
-        # trigger_price_tp = 4.5
-        # tp_clientId = 'targetpoint_order4'
-        # sizeTP = 1
+            market, side, orderQty, type, targetPx, clientId)
 
 
-def process_append_order(ftx: FtxCLient, orderID, origClOrdID, ordType, price, stopPx, targetPx, orderQty):
-
+def process_append_order(ftx, clientId, type, price, stopPx, targetPx, orderQty):
     cp.yellow("Appending orders started")
+    clientId = f'{type}_{clientId}'
     if ordType == "limit":
 
-        ftx.modify_order(existing_client_order_id=clientId,
-                         price=price, size=size)
+        ftx.modify_order(clientId, price, orderQty)
     elif ordType == "stop":
-        ftx.modify_order(existing_client_order_id=clientId,
-                         price=stopPx, size=orderQty)
+        ftx.modify_condtional_order(clientId, stopPx, orderQty)
     elif type == "take_profit":
-        ftx.modify_order(existing_client_order_id=clientId,
-                         price=targetPx, size=orderQty)
+        ftx.modify_conditional_order(clientId, targetPx, orderQty)
 
 
-def process_get_order(ftx: FtxCLient, market):
+def process_get_order(ftx, market, ordType):
     cp.yellow("Get orders started")
-    ftx.get_open_orders(ftx.markets.get(market))
+    if ordType == "limit":
+        ftx.get_open_orders(ftx.markets.get(market))
+    if ordType == "stop":
+        ftx.get_open_conditional_orders(ftx.markets.get(market))
 
 
-def process_delete_all_order(ftx: FtxCLient, market):
+def process_delete_all_order(ftx, market):
     cp.yellow("Delete all orders started")
     market_name = ftx.markets.get(market)
     ftx.cancel_orders(market_name=market_name)
@@ -105,15 +86,15 @@ def parse_args():
     order_opts.add_argument('-s', '--side', type=str,
                             dest='side', help="Buy/Sell", choices=['buy', 'sell'], default="buy")
     order_opts.add_argument('-o', '--orderType', type=str, dest='orderType',
-                            help="Choose order type", choices=['limit', 'market', 'stop', 'take_profit', 'trailing'], default="limit")
-    order_opts.add_argument('-qty', '--quantity', type=int,
+                            help="Choose order type", choices=['limit', 'market', 'stop', 'take_profit', 'trailing_stop'], default="limit")
+    order_opts.add_argument('-qty', '--quantity', type=float,
                             dest='quantity', help="Quantity", nargs='?', const=0)
-    order_opts.add_argument('-e', '--entry', type=int,
+    order_opts.add_argument('-e', '--entry', type=float,
                             dest='entry', help="Entry price for limit order only", nargs='?', const=0)
-    order_opts.add_argument('-sl', '--stoploss', type=int,
-                            dest='triggerPrice', help="Stoploss price entry", nargs='?', const=0)
+    order_opts.add_argument('-sl', '--stoploss', type=float,
+                            dest='stoploss', help="Stoploss price entry", nargs='?', const=0)
     order_opts.add_argument('-tp', '--targetpoint',
-                            type=int, dest='targetpoint', help="Target point entry", nargs='?', const=0)
+                            type=float, dest='targetpoint', help="Target point entry", nargs='?', const=0)
     order_opts.add_argument('-id', '--clientId', type=str,
                             dest='clientId', help="Order Id for the order", default="0")
 
@@ -140,25 +121,26 @@ def main():
     side = args.side
     ordType = args.orderType  # trailingStop.. is the S needed?
     orderQty = args.quantity
-    price = args.entry
-    stopPx = args.stoploss
-    targetPx = args.targetpoint
+    price = args.entry if args.entry else None
+    stopPx = args.stoploss if args.stoploss else None
+    targetPx = args.targetpoint if args.targetpoint else None
     clientId = args.clientId
 
     cp.blue(
-        f'{side}, {ordType}, {orderQty}, {price}, {stopPx}, {targetPx},{orderID}')
+        f'{side}, {ordType}, {orderQty}, {price}, {stopPx}, {targetPx},{clientId}')
     # establish connection
     ftx = connection()
-
     # Transfer args to specify api Endpoint
     if endpoint == "CREATE":
-        process_new_order(ftx, market, side, price, type=ordType, size, clientId, stopPx, targetPx)
+        process_new_order(ftx, market, side, price, orderQty,
+                          ordType, clientId, stopPx, targetPx)
     elif endpoint == "GET":
-        process_get_order()
+        process_get_order(ftx, market, ordType)
     elif endpoint == "APPEND":
-        process_append_order()
+        process_append_order(ftx, clientId, ordType, price,
+                             stopPx, targetPx, orderQty)
     elif endpoint == "DELETE":
-        process_delete_all_order()
+        process_delete_all_order(ftx, market)
 
 
 if __name__ == '__main__':
@@ -169,3 +151,16 @@ if __name__ == '__main__':
         cp.red(ex.args)
     finally:
         exit()
+
+
+# python ftxClient.py -t create -m xtz -s buy -o limit -qty 1 -e 3.01 -id 100
+# python ftxClient.py -t create -m xtz -s sell -o stop -qty 1 -sl 2.05 -id 100
+# python ftxClient.py -t create -m xtz -s sell -o take_profit -qty 1 -tp 5 -id 100
+
+
+# GET ORDERS
+# python ftxClient.py -t get -m xtz -o stop
+# python ftxClient.py -t get -m xtz
+
+# Delete orders
+# python ftxClient.py -t delete -m xtz
