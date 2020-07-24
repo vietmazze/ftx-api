@@ -47,7 +47,7 @@ class FtxClient:
         response = self._session.send(request.prepare())
         # Clean up response
         result = self._process_response(response)
-        self.cp.red(f'{result}')
+        return result
 
     def _sign_request(self, request: Request) -> None:
         ts = int(time.time() * 1000)
@@ -85,16 +85,26 @@ class FtxClient:
 
     def place_order(self, market: str, side: str, price: float, size: float, type: str = 'limit',
                     clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
-        return self._post('orders', {'market': market,
-                                     'side': side,
-                                     'price': price,
-                                     'size': size,
-                                     'type': type,
-                                     'reduceOnly': reduce_only,
-                                     'ioc': ioc,
-                                     'postOnly': post_only,
-                                     'clientId': clientId,
-                                     })
+        try:
+            result = self._post('orders', {'market': market,
+                                           'side': side,
+                                           'price': price,
+                                           'size': size,
+                                           'type': type,
+                                           'reduceOnly': reduce_only,
+                                           'ioc': ioc,
+                                           'postOnly': post_only,
+                                           'clientId': clientId,
+                                           })
+            self.cp.green(f"""{result['type']} has been created: 
+                          clientId - {result['clientId']}, 
+                          market: {result['market']}, 
+                          size: {result['size']},
+                          price: {result['price']}, 
+                          side: {result['side']}""")
+
+        except Exception as e:
+            self.cp.red(f'Exception when calling place_order: \n {e}')
 
     def place_conditional_order(
             self, market: str, side: str, size: float, type: str,
@@ -112,30 +122,40 @@ class FtxClient:
         assert type not in ('trailing_stop',) or (trigger_price is None and trail_value is not None), \
             'Trailing stops need a trail value and cannot take a trigger price'
 
-        return self._post('conditional_orders',
-                          {'market': market, 'side': side, 'triggerPrice': trigger_price,
-                           'size': size, 'reduceOnly': reduce_only, 'type': type,
-                           'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
+        try:
+            result = self._post('conditional_orders',
+                                {'market': market, 'side': side, 'triggerPrice': trigger_price,
+                                 'size': size, 'reduceOnly': reduce_only, 'type': type,
+                                 'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
+            self.cp.green(f"""{result['type']} has been created: 
+                          market: {result['market']}, 
+                          size: {result['size']},
+                          price: {result['triggerPrice']}, 
+                          side: {result['side']}""")
+            self.cp.green(f'{result}')
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling place_conditional_order: \n {e}')
 
     def cancel_order(self, order_id: str) -> dict:
-        return self._delete(f'orders/{order_id}')
+        result = self._delete(f'orders/{order_id}')
 
     # ftx.cancel_orders(market_name=ftx.markets.get('XTZ'))
 
     def cancel_orders(self, market_name: str = None, conditional_orders: bool = False,
                       limit_orders: bool = False) -> dict:
-        return self._delete(f'orders', {'market': market_name,
-                                        'conditionalOrdersOnly': conditional_orders,
-                                        'limitOrdersOnly': limit_orders,
-                                        })
+        result = self._delete(f'orders', {'market': market_name,
+                                          'conditionalOrdersOnly': conditional_orders,
+                                          'limitOrdersOnly': limit_orders,
+                                          })
 
     # ftx.get_open_orders(ftx.markets.get('XTZ'))
 
     def get_open_orders(self, market: str = None) -> List[dict]:
-        return self._get(f'orders', {'market': market})
+        result = self._get(f'orders', {'market': market})
 
     def get_open_conditional_orders(self, market: str = None) -> List[dict]:
-        return self._get(f'conditional_orders', {'market': market})
+        result = self._get(f'conditional_orders', {'market': market})
 
     def modify_order(self, existing_client_order_id: Optional[str] = None, price: Optional[float] = None, size: Optional[float] = None, existing_order_id: Optional[str] = None) -> dict:
         assert (existing_order_id is None) ^ (existing_client_order_id is None), \
@@ -144,7 +164,7 @@ class FtxClient:
             size is None), 'Must modify price or size of order'
         path = f'orders/{existing_order_id}/modify' if existing_order_id is not None else \
             f'orders/by_client_id/{existing_client_order_id}/modify'
-        return self._post(path, {
+        result = self._post(path, {
             **({'size': size} if size is not None else {}),
             **({'price': price} if price is not None else {}),
             ** ({'clientId': client_order_id} if client_order_id is not None else {}),
@@ -164,7 +184,7 @@ class FtxClient:
             size is None), 'Must modify price or size of order'
         path = f'orders/{existing_order_id}/modify' if existing_order_id is not None else \
             f'orders/by_client_id/{existing_client_order_id}/modify'
-        return self._post(path, {
+        result = self._post(path, {
             **({'size': size} if size is not None else {}),
             **({'triggerPrice': price} if price is not None else {}),
             ** ({'clientId': client_order_id} if client_order_id is not None else {}),
