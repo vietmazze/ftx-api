@@ -96,7 +96,7 @@ class FtxClient:
                                            'postOnly': post_only,
                                            'clientId': clientId,
                                            })
-            self.cp.green(f"""{result['type']} has been created: 
+            self.cp.green(f"""{result['type']} order has been created: 
                           clientId - {result['clientId']}, 
                           market: {result['market']}, 
                           size: {result['size']},
@@ -127,7 +127,7 @@ class FtxClient:
                                 {'market': market, 'side': side, 'triggerPrice': trigger_price,
                                  'size': size, 'reduceOnly': reduce_only, 'type': type,
                                  'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
-            self.cp.green(f"""{result['type']} has been created: 
+            self.cp.green(f"""{result['type']} order has been created: 
                           market: {result['market']}, 
                           size: {result['size']},
                           price: {result['triggerPrice']}, 
@@ -137,55 +137,119 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling place_conditional_order: \n {e}')
 
+    # Cancel specific
     def cancel_order(self, order_id: str) -> dict:
-        result = self._delete(f'orders/{order_id}')
+        try:
+            result = self._delete(f'orders/{order_id}')
+            self.cp.green(f"{result}")
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling cancel_order: \n {e}')
 
     # ftx.cancel_orders(market_name=ftx.markets.get('XTZ'))
+    # cancel all orders
 
     def cancel_orders(self, market_name: str = None, conditional_orders: bool = False,
                       limit_orders: bool = False) -> dict:
-        result = self._delete(f'orders', {'market': market_name,
-                                          'conditionalOrdersOnly': conditional_orders,
-                                          'limitOrdersOnly': limit_orders,
-                                          })
+        try:
+            result = self._delete(f'orders', {'market': market_name,
+                                              'conditionalOrdersOnly': conditional_orders,
+                                              'limitOrdersOnly': limit_orders,
+                                              })
 
-    # ftx.get_open_orders(ftx.markets.get('XTZ'))
+            self.cp.green(f"{result}")
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling cancel_orders: \n {e}')
+
+    # Get all open orders
 
     def get_open_orders(self, market: str = None) -> List[dict]:
-        result = self._get(f'orders', {'market': market})
+        try:
+            result = self._get(f'orders', {'market': market})
+            self.cp.green(f'{result}')
+            for item in result:
+                self.cp.green(f"""{item['type']} order is in placed: 
+                            market: {item['market']}, 
+                            size: {item['size']},
+                            price: {item['price']}, 
+                            side: {item['side']},
+                            clientId: {item['clientId']},
+                            id: {item['id']}""")
+
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling get_open_orders: \n {e}')
 
     def get_open_conditional_orders(self, market: str = None) -> List[dict]:
-        result = self._get(f'conditional_orders', {'market': market})
+        try:
+            result = self._get(f'conditional_orders', {'market': market})
+            for item in result:
+                self.cp.green(f"""{item['type']} order is in placed: 
+                            market: {item['market']}, 
+                            size: {item['size']},
+                            stop_trigger: {item['triggerPrice']}, 
+                            side: {item['side']},
+                            id: {item['id']}""")
 
-    def modify_order(self, existing_client_order_id: Optional[str] = None, price: Optional[float] = None, size: Optional[float] = None, existing_order_id: Optional[str] = None) -> dict:
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling get_open_conditional_orders: \n {e}')
+
+    # modify wil change the ID value
+    def modify_order(self, existing_order_id: Optional[str] = None, price: Optional[float] = None, size: Optional[float] = None, existing_client_order_id: Optional[str] = None) -> dict:
         assert (existing_order_id is None) ^ (existing_client_order_id is None), \
             'Must supply exactly one ID for the order to modify'
-        assert (price is None) or (
-            size is None), 'Must modify price or size of order'
+
         path = f'orders/{existing_order_id}/modify' if existing_order_id is not None else \
             f'orders/by_client_id/{existing_client_order_id}/modify'
-        result = self._post(path, {
-            **({'size': size} if size is not None else {}),
-            **({'price': price} if price is not None else {}),
-            ** ({'clientId': client_order_id} if client_order_id is not None else {}),
-        })
+        try:
+            result = self._post(path, {
+                **({'size': size} if size is not None else {}),
+                **({'price': price} if price is not None else {}),
+                ** ({'clientId': existing_client_order_id} if existing_client_order_id is not None else {}),
+            })
+            self.cp.green(f"""{result['type']} has modified: 
+                        market: {result['market']}, 
+                        size: {result['size']},
+                        price: {result['price']}, 
+                        side: {result['side']},
+                        id: {result['id']}""")
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling modify_order: \n {e}')
 
-    def modify_conditional_order(
-        self,
-        existing_client_order_id: Optional[str] = None,
-        triggerPrice: Optional[float] = None,
-        size: Optional[float] = None,
-        client_order_id: Optional[str] = None,
-        existing_order_id: Optional[str] = None,
-    ) -> dict:
+    def modify_conditional_order(self, existing_order_id: Optional[str] = None, price: Optional[float] = None, size: Optional[float] = None, existing_client_order_id: Optional[str] = None) -> dict:
         assert (existing_order_id is None) ^ (existing_client_order_id is None), \
             'Must supply exactly one ID for the order to modify'
-        assert (price is None) or (
-            size is None), 'Must modify price or size of order'
-        path = f'orders/{existing_order_id}/modify' if existing_order_id is not None else \
-            f'orders/by_client_id/{existing_client_order_id}/modify'
-        result = self._post(path, {
-            **({'size': size} if size is not None else {}),
-            **({'triggerPrice': price} if price is not None else {}),
-            ** ({'clientId': client_order_id} if client_order_id is not None else {}),
-        })
+
+        path = f'conditional_orders/{existing_order_id}/modify' if existing_order_id is not None else \
+            f'conditional_orders/by_client_id/{existing_client_order_id}/modify'
+        try:
+            self.cp.red(
+                f'{path}, size: {size}, triggerPr: {price}, clientId: {existing_client_order_id}')
+            result = self._post(path, {
+                **({'size': size} if size is not None else {}),
+                **({'triggerPrice': price} if price is not None else {}),
+                ** ({'clientId': existing_client_order_id} if existing_client_order_id is not None else {}),
+            })
+            self.cp.green(f"""{result['type']} has modified: 
+                        market: {result['market']}, 
+                        size: {result['size']},
+                        price: {result['triggerPrice']}, 
+                        side: {result['side']},
+                        id: {result['id']}""")
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling modify_conditional_order: \n {e}')
+
+    def response_format(self, result, call):
+        if result:
+            return self.cp.green(f"""{result['type']} has modified: 
+                        market: {result['market']}, 
+                        size: {result['size']},
+                        price: {result['triggerPrice']}, 
+                        side: {result['side']}""")
+        else:
+            return self.cp.red(
+                f'Exception when calling modify_conditional_order: \n {e}')

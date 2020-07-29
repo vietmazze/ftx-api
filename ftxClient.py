@@ -21,11 +21,14 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger('LOGGER_NAME')
 
 # process new buy/sell order
+# ESTABLISH CONNECTION
 
 
 def connection(subaccount_name="hunter-api"):
     ftx = FtxClient(subaccount_name)
     return ftx
+
+# CREATE NEW ORDER
 
 
 def process_new_order(ftx, market, side, price, orderQty, type, clientId, stopPx, targetPx):
@@ -43,31 +46,38 @@ def process_new_order(ftx, market, side, price, orderQty, type, clientId, stopPx
         ftx.place_conditional_order(
             market, side, orderQty, type, targetPx, clientId)
 
+# APPEND ORDER
+
 
 def process_append_order(ftx, clientId, type, price, stopPx, targetPx, orderQty):
     cp.yellow("Appending orders started")
-    clientId = f'{type}_{clientId}'
-    if ordType == "limit":
-
+    if type == "limit":
         ftx.modify_order(clientId, price, orderQty)
-    elif ordType == "stop":
-        ftx.modify_condtional_order(clientId, stopPx, orderQty)
+    elif type == "stop":
+
+        ftx.modify_conditional_order(clientId, stopPx, orderQty)
     elif type == "take_profit":
         ftx.modify_conditional_order(clientId, targetPx, orderQty)
 
+# GET ORDER
 
-def process_get_order(ftx, market, ordType):
+
+def process_get_order(ftx, market, type):
     cp.yellow("Get orders started")
-    if ordType == "limit":
+    if type == "limit":
         ftx.get_open_orders(ftx.markets.get(market))
-    if ordType == "stop":
+    if type == "stop":
         ftx.get_open_conditional_orders(ftx.markets.get(market))
+
+# DELETE ORDER
 
 
 def process_delete_all_order(ftx, market):
     cp.yellow("Delete all orders started")
     market_name = ftx.markets.get(market)
     ftx.cancel_orders(market_name=market_name)
+
+# CREATE COMMAND ARGS
 
 
 def parse_args():
@@ -76,7 +86,7 @@ def parse_args():
                                      description='Process orders through FTX API',
                                      usage='ftx -letter [amount]')
     parser.add_argument('-t', '--type', type=str, dest='type',
-                        help="Choose API endpoint", choices=['get', 'create', 'conditional' 'append', 'delete'])
+                        help="Choose API endpoint", choices=['get', 'create', 'conditional', 'append', 'delete'])
     # arguments to pass in create_bulk_order
 
     order_opts = parser.add_argument_group(
@@ -95,7 +105,7 @@ def parse_args():
                             dest='stoploss', help="Stoploss price entry", nargs='?', const=0)
     order_opts.add_argument('-tp', '--targetpoint',
                             type=float, dest='targetpoint', help="Target point entry", nargs='?', const=0)
-    order_opts.add_argument('-id', '--clientId', type=str,
+    order_opts.add_argument('-id', '--clientId', type=int,
                             dest='clientId', help="Order Id for the order", default="0")
 
     # arguments to pass in append_order
@@ -164,3 +174,8 @@ if __name__ == '__main__':
 
 # Delete orders
 # python ftxClient.py -t delete -m xtz
+
+# modify orders
+# python ftxClient.py -t append -o limit -e 1.5  -qty 2 -id 7014530531
+# python ftxClient.py -t append -o stop -sl 0.77 -qty 2 -id 6481046
+# python ftxClient.py -t append -o take_profit -tp 10 -qty 2 -id 6481118
