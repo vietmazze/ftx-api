@@ -1,5 +1,6 @@
 from requests import Request, Session, Response
 import time
+import collections
 import datetime
 import json
 import logging
@@ -172,14 +173,33 @@ class FtxClient:
                 f'Exception when calling place_conditional_order: \n {e}')
 
 
-def process_command(ftx, command):
+def process_command(ftx, userInput):
+    dispatcher = {'instrument':,
+                  'fatfinger':,
+                  'buy': place_order,
+                  'sell':,
+                  'alias':,
+                  'tp': place_conditional_order,
+                  'trail':,
+                  'close': ,
+                  'cancel': cancel_orders,
+                  'position':,
+                  'order': get_open_orders}
 
-    command.split(" ")
+    # seperate by comma - diff call
+    # seperate by each order - one call
+    commands = collections.deque()
+    for input in userInput.split(","):
+        commands.append(input)
 
+    while commands:
+        command_one, command_two = commands.popleft()
+        dispatcher[command_one](command_two)
     # set fatfinger
-
+    # if command_one == "fatfinger":
+        # send to fatfinger function
     # locking instrument
-    if command
+
     # creating alias
 
     # placing orders
@@ -196,12 +216,12 @@ def main(ftx):
         # main program
 
         while True:
-            command = input('Command: ')
+            userInput = input('Command: ')
             break
-        if command == 'q':
+        if userInput == 'q':
             break
         else:
-            result = process_command(ftx, command)
+            result = process_command(ftx, userInput)
 
 
 if __name__ == '__main__':
