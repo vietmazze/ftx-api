@@ -174,27 +174,35 @@ class FtxClient:
 
 
 def process_command(ftx, userInput):
-    dispatcher = {'instrument':,
-                  'fatfinger':,
+    dispatcher = {'instrument': ,
+                  'fatfinger': ,
                   'buy': place_order,
-                  'sell':,
-                  'alias':,
+                  'sell': ,
+                  'alias': ,
                   'tp': place_conditional_order,
-                  'trail':,
-                  'close': ,
+                  'trail': ,
+                  'close':,
                   'cancel': cancel_orders,
-                  'position':,
+                  'position': ,
                   'order': get_open_orders}
 
     # seperate by comma - diff call
     # seperate by each order - one call
+    # buy 10 @100, buy 20 @150
     commands = collections.deque()
+    commandList = []
+
     for input in userInput.split(","):
         commands.append(input)
 
     while commands:
-        command_one, command_two = commands.popleft()
-        dispatcher[command_one](command_two)
+        currCommand = commands.popleft().split(" ")
+        for value in currCommand:
+            if value:
+                commandList.append(value)
+            else:
+                commandList.append(None)
+        dispatcher[commandList[0]](commandList)
     # set fatfinger
     # if command_one == "fatfinger":
         # send to fatfinger function
