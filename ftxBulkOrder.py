@@ -34,7 +34,6 @@ class FtxClient:
         self._api_key = os.getenv('FTX_HUNTER_KEY')
         self._api_secret = os.getenv('FTX_HUNTER_SECRET')
         self._subaccount_name = "hunter-api"
-        self.logger = logging.getLogger(__name__)
         self.cp = ColorPrint()
         self.market = ""
 
@@ -120,6 +119,7 @@ class FtxClient:
 
     def place_order(self, market: str, side: str, price: float, size: float, type: str = 'limit',
                     clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
+
         try:
             result = self._post('orders', {'market': market,
                                            'side': side,
@@ -174,49 +174,84 @@ class FtxClient:
 
 
 def process_command(ftx, userInput):
-    dispatcher = {'instrument': ,
-                  'fatfinger': ,
-                  'buy': place_order,
-                  'sell': ,
-                  'alias': ,
-                  'tp': place_conditional_order,
-                  'trail': ,
-                  'close':,
-                  'cancel': cancel_orders,
-                  'position': ,
-                  'order': get_open_orders}
+    # dispatcher = {'instrument': ,
+    #               'fatfinger': ,
+    #               'buy': place_order,
+    #               'sell': ,
+    #               'alias': ,
+    #               'tp': place_conditional_order,
+    #               'trail': ,
+    #               'close':,
+    #               'cancel': cancel_orders,
+    #               'position': ,
+    #               'order': get_open_orders}
 
     # seperate by comma - diff call
     # seperate by each order - one call
-    # buy 10 @100, buy 20 @150
+    # buy 10 @100; buy 20 @150
+    # buy 1 @8500, sell 1 @8600  - place two orders to execute one after the other
+    # buy 1 @8500; sell 1 @8600  - place two orders to execute together at the same time
     commands = collections.deque()
-    commandList = []
 
-    for input in userInput.split(","):
+    for input in userInput.split(";"):
+        # [buy 1 @8500, sell 1 @8600]
         commands.append(input)
 
     while commands:
         currCommand = commands.popleft().split(" ")
-        for value in currCommand:
-            if value:
-                commandList.append(value)
+
+        # placing orders
+        if currCommand[0] == "buy" or currCommand[0] == "sell":
+
+            side = currCommand[0] if currCommand[0] else None
+            size = currCommand[1] if currCommand[1] else None
+            price = currCommand[2] if currCommand[2] else None
+            type = "market" if currCommand[2] is None else "limit"
+
+            cp.green(f'{size}, {size}, {price}, {type}')
+            # if size:
+            #     if price:
+            #         # await thread?
+            #         commandLogger.log(f'{size}, {size}, {price}, {type}')
+            #         ftx.place_order(market=ftx.market, side=side,
+            #                         size=size, price=price, type=type)
+            #     else:
+            #         commandLogger.log(f'{size}, {size}, {price}, {type}')
+            #         ftx.place_order(market=ftx.market, size=size, type=type)
+            # else:
+            #     pass
+        # placing conditional orders
+        elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
+            pass
+
+        # show open orders
+        elif currCommand[0] == "order":
+            pass
+
+         # show open positions
+        elif currCommand[0] == "position":
+            pass
+
+         # cancel orders
+        elif currCommand[0] == "cancel":
+            # diff types of cancel
+            pass
+
+        # locking instrument
+        elif currCommand[0] == "instrument":
+            if len(currCommand) < 2:
+                cp.green(f'Current MARKET: {ftx.market}')
             else:
-                commandList.append(None)
-        dispatcher[commandList[0]](commandList)
-    # set fatfinger
-    # if command_one == "fatfinger":
-        # send to fatfinger function
-    # locking instrument
+                ftx.market = currCommand[1].upper()
+                cp.green(f'Assign MARKET: {ftx.market}')
 
-    # creating alias
+        else:
+            pass
 
-    # placing orders
+        # set fatfinger:
+            # send to fatfinger function
 
-    # cancel orders
-
-    # show open orders
-
-    # show open positions
+        # creating alias
 
 
 def main(ftx):
@@ -229,7 +264,7 @@ def main(ftx):
         if userInput == 'q':
             break
         else:
-            result = process_command(ftx, userInput)
+            process_command(ftx, userInput)
 
 
 if __name__ == '__main__':
