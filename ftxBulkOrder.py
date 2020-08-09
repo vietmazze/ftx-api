@@ -35,7 +35,7 @@ class FtxClient:
         self._api_secret = os.getenv('FTX_HUNTER_SECRET')
         self._subaccount_name = "hunter-api"
         self.cp = ColorPrint()
-        self.market = ""
+        self.market = "None"
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
         return self._request('GET', path, params=params)
@@ -117,9 +117,9 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling get_open_orders: \n {e}')
 
-    def place_order(self, market: str, side: str, price: float, size: float, type: str = 'limit',
-                    clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
-
+    def place_order(self, market: str, side: str, size: float, type: str = 'limit',
+                    price: float = None, clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
+        cp.green(f'Place Order: {market},{side}, {size}, {price}, {type}')
         try:
             result = self._post('orders', {'market': market,
                                            'side': side,
@@ -131,11 +131,11 @@ class FtxClient:
                                            'postOnly': post_only,
                                            'clientId': clientId,
                                            })
-            self.cp.green(f"""{result['type']} order has been created: 
-                          clientId - {result['clientId']}, 
-                          market: {result['market']}, 
+            self.cp.green(f"""{result['type']} order has been created:
+                          clientId - {result['clientId']},
+                          market: {result['market']},
                           size: {result['size']},
-                          price: {result['price']}, 
+                          price: {result['price']},
                           side: {result['side']}""")
 
         except Exception as e:
@@ -195,7 +195,7 @@ def process_command(ftx, userInput):
 
     for input in userInput.split(";"):
         # [buy 1 @8500, sell 1 @8600]
-        commands.append(input)
+        commands.append(input.strip())
 
     while commands:
         currCommand = commands.popleft().split(" ")
@@ -203,47 +203,53 @@ def process_command(ftx, userInput):
         # placing orders
         if currCommand[0] == "buy" or currCommand[0] == "sell":
 
-            side = currCommand[0] if currCommand[0] else None
-            size = currCommand[1] if currCommand[1] else None
-            price = currCommand[2] if currCommand[2] else None
-            type = "market" if currCommand[2] is None else "limit"
+            side = currCommand[0] if len(currCommand) > 0 else None
+            size = currCommand[1] if len(currCommand) > 1 else None
+            price = currCommand[2] if len(currCommand) > 2 else None
+            type = "limit" if len(currCommand) > 2 else "market"
 
-            cp.green(f'{size}, {size}, {price}, {type}')
-            # if size:
-            #     if price:
-            #         # await thread?
-            #         commandLogger.log(f'{size}, {size}, {price}, {type}')
-            #         ftx.place_order(market=ftx.market, side=side,
-            #                         size=size, price=price, type=type)
-            #     else:
-            #         commandLogger.log(f'{size}, {size}, {price}, {type}')
-            #         ftx.place_order(market=ftx.market, size=size, type=type)
-            # else:
-            #     pass
+            if size:
+                if price and type == "limit":
+                    # await thread?
+
+                    ftx.place_order(market=ftx.market, side=side,
+                                    size=size, price=price, type=type)
+                else:
+
+                    ftx.place_order(
+                        market=ftx.market, side=side, size=size, type=type)
+            else:
+                pass
         # placing conditional orders
         elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
-            pass
+            side = currCommand[0] if len(currCommand) > 0 else None
+            size = currCommand[1] if len(currCommand) > 1 else None
+            price = currCommand[2] if len(currCommand) > 2 else None
+            type = "limit" if len(currCommand) > 2 else "market"
+
+            cp.green(
+                f'Placing conditional Order: {side}, {size}, {price}, {type}')
 
         # show open orders
         elif currCommand[0] == "order":
-            pass
+            cp.green(f'Current Open Orders:')
 
          # show open positions
         elif currCommand[0] == "position":
-            pass
+            cp.green(f'Assign open Position:')
 
          # cancel orders
         elif currCommand[0] == "cancel":
             # diff types of cancel
-            pass
+            cp.green(f'Orders are canceled')
 
         # locking instrument
         elif currCommand[0] == "instrument":
             if len(currCommand) < 2:
                 cp.green(f'Current MARKET: {ftx.market}')
-            else:
+            elif currCommand[1]:
                 ftx.market = currCommand[1].upper()
-                cp.green(f'Assign MARKET: {ftx.market}')
+                cp.green(f'Assign new MARKET: {ftx.market}')
 
         else:
             pass
