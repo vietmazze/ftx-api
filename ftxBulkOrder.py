@@ -36,6 +36,8 @@ class FtxClient:
         self._subaccount_name = "hunter-api"
         self.cp = ColorPrint()
         self.market = "None"
+        self.orderSide = None
+        self.fatFinger = None
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
         return self._request('GET', path, params=params)
@@ -105,10 +107,10 @@ class FtxClient:
             result = self._get(f'orders', {'market': market})
             self.cp.green(f'{result}')
             for item in result:
-                self.cp.green(f"""{item['type']} order is in placed: 
-                            market: {item['market']}, 
+                self.cp.green(f"""{item['type']} order is in placed:
+                            market: {item['market']},
                             size: {item['size']},
-                            price: {item['price']}, 
+                            price: {item['price']},
                             side: {item['side']},
                             clientId: {item['clientId']},
                             id: {item['id']}""")
@@ -120,30 +122,30 @@ class FtxClient:
     def place_order(self, market: str, side: str, size: float, type: str = 'limit',
                     price: float = None, clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
         cp.green(f'Place Order: {market},{side}, {size}, {price}, {type}')
-        try:
-            result = self._post('orders', {'market': market,
-                                           'side': side,
-                                           'price': price,
-                                           'size': size,
-                                           'type': type,
-                                           'reduceOnly': reduce_only,
-                                           'ioc': ioc,
-                                           'postOnly': post_only,
-                                           'clientId': clientId,
-                                           })
-            self.cp.green(f"""{result['type']} order has been created:
-                          clientId - {result['clientId']},
-                          market: {result['market']},
-                          size: {result['size']},
-                          price: {result['price']},
-                          side: {result['side']}""")
+        # try:
+        #     result = self._post('orders', {'market': market,
+        #                                    'side': side,
+        #                                    'price': price,
+        #                                    'size': size,
+        #                                    'type': type,
+        #                                    'reduceOnly': reduce_only,
+        #                                    'ioc': ioc,
+        #                                    'postOnly': post_only,
+        #                                    'clientId': clientId,
+        #                                    })
+        #     self.cp.green(f"""{result['type']} order has been created:
+        #                   clientId - {result['clientId']},
+        #                   market: {result['market']},
+        #                   size: {result['size']},
+        #                   price: {result['price']},
+        #                   side: {result['side']}""")
 
-        except Exception as e:
-            self.cp.red(f'Exception when calling place_order: \n {e}')
+        # except Exception as e:
+        #     self.cp.red(f'Exception when calling place_order: \n {e}')
 
     def place_conditional_order(
             self, market: str, side: str, size: float, type: str,
-            trigger_price: float = None, clientId: str = None, limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
+            triggerPrice: float = None, clientId: str = None, limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
             trail_value: float = None) -> dict:
         """
         To send a Stop Market order, set type='stop' and supply a trigger_price
@@ -152,25 +154,77 @@ class FtxClient:
         To send a Trailing Stop order, set type='trailing_stop' and supply a trail_value
         """
         assert type in ('stop', 'take_profit', 'trailing_stop')
-        assert type not in ('stop', 'take_profit') or trigger_price is not None, \
+        assert type not in ('stop', 'take_profit') or triggerPrice is not None, \
             'Need trigger prices for stop losses and take profits'
-        assert type not in ('trailing_stop',) or (trigger_price is None and trail_value is not None), \
+        assert type not in ('trailing_stop',) or (triggerPrice is None and trail_value is not None), \
             'Trailing stops need a trail value and cannot take a trigger price'
 
-        try:
-            result = self._post('conditional_orders',
-                                {'market': market, 'side': side, 'triggerPrice': trigger_price,
-                                 'size': size, 'reduceOnly': reduce_only, 'type': type,
-                                 'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
-            self.cp.green(f"""{result['type']} order has been created: 
-                          market: {result['market']}, 
-                          size: {result['size']},
-                          price: {result['triggerPrice']}, 
-                          side: {result['side']}""")
-            self.cp.green(f'{result}')
-        except Exception as e:
-            self.cp.red(
-                f'Exception when calling place_conditional_order: \n {e}')
+        cp.green(
+            f'Placing conditional Order:{market}, {side}, {size}, {triggerPrice}, {type}')
+        # try:
+        #     result = self._post('conditional_orders',
+        #                         {'market': market, 'side': side, 'triggerPrice': triggerPrice,
+        #                          'size': size, 'reduceOnly': reduce_only, 'type': type,
+        #                          'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
+        #     self.cp.green(f"""{result['type']} order has been created:
+        #                   market: {result['market']},
+        #                   size: {result['size']},
+        #                   triggerPrice: {result['triggerPrice']},
+        #                   side: {result['side']}""")
+        #     self.cp.green(f'{result}')
+        # except Exception as e:
+        #     self.cp.red(
+        #         f'Exception when calling place_conditional_order: \n {e}')
+
+    """ Clean up order before placing """
+
+    def place_order_cleanup(self, currCommand):
+        side = currCommand[0] if len(currCommand) > 0 else None
+        ftx.orderSide = side
+        size = currCommand[1] if len(currCommand) > 1 else None
+        price = currCommand[2] if len(currCommand) > 2 else None
+        type = "limit" if len(currCommand) > 2 else "market"
+
+        if size:
+            if price and type == "limit":
+
+                self.place_order(market=ftx.market, side=side,
+                                 size=size, price=price, type=type)
+            else:
+
+                self.place_order(
+                    market=ftx.market, side=side, size=size, type=type)
+        else:
+            cp.red(f'Error in placing order, missing size or price entry.')
+
+    """ Clean up conditional order before placing """
+
+    def place_conditional_order_cleanup(self, currCommand):
+        type = currCommand[0] if len(currCommand) > 0 else None
+        if type == "tp":
+            type = "takeProfit"
+        if type == "trail":
+            type = "trailingStop"
+        size = currCommand[2] if len(currCommand) > 2 else None
+        price = currCommand[1] if len(currCommand) > 1 else None
+        if self.orderSide is not None:
+            side = "buy" if self.orderSide == "sell" else "sell"
+        else:
+            cp.red(
+                f'Error in placing conditional order,need to make open order b4 trigger order')
+
+        limitPrice = currCommand[3] if len(currCommand) > 3 else None
+
+        if price:
+            if limitPrice:
+                self.place_conditional_order(
+                    market=self.market, side=side, size=size, triggerPrice=price, limit_price=limitPrice, type=type)
+            else:
+                self.place_conditional_order(
+                    market=self.market, side=side, size=size, triggerPrice=price, type=type)
+        else:
+            cp.red(
+                f'Error in placing conditional order,need trigger price and/or limitPrice')
 
 
 def process_command(ftx, userInput):
@@ -202,38 +256,19 @@ def process_command(ftx, userInput):
 
         # placing orders
         if currCommand[0] == "buy" or currCommand[0] == "sell":
+            ftx.place_order_cleanup(currCommand)
 
-            side = currCommand[0] if len(currCommand) > 0 else None
-            size = currCommand[1] if len(currCommand) > 1 else None
-            price = currCommand[2] if len(currCommand) > 2 else None
-            type = "limit" if len(currCommand) > 2 else "market"
-
-            if size:
-                if price and type == "limit":
-                    # await thread?
-
-                    ftx.place_order(market=ftx.market, side=side,
-                                    size=size, price=price, type=type)
-                else:
-
-                    ftx.place_order(
-                        market=ftx.market, side=side, size=size, type=type)
-            else:
-                pass
         # placing conditional orders
+        # TP not working atm
         elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
-            side = currCommand[0] if len(currCommand) > 0 else None
-            size = currCommand[1] if len(currCommand) > 1 else None
-            price = currCommand[2] if len(currCommand) > 2 else None
-            type = "limit" if len(currCommand) > 2 else "market"
-
-            cp.green(
-                f'Placing conditional Order: {side}, {size}, {price}, {type}')
+            ftx.place_conditional_order_cleanup(currCommand)
 
         # show open orders
         elif currCommand[0] == "order":
-            cp.green(f'Current Open Orders:')
-
+            if ftx.market:
+                ftx.get_open_orders(ftx.market)
+            else:
+                cp.red(f'Missing market to grab open orders, please reset instrument')
          # show open positions
         elif currCommand[0] == "position":
             cp.green(f'Assign open Position:')
@@ -241,8 +276,10 @@ def process_command(ftx, userInput):
          # cancel orders
         elif currCommand[0] == "cancel":
             # diff types of cancel
-            cp.green(f'Orders are canceled')
-
+            if ftx.market:
+                ftx.cancel_orders(ftx.market)
+            else:
+                cp.red(f'Missing market to delete orders, please reset instrument')
         # locking instrument
         elif currCommand[0] == "instrument":
             if len(currCommand) < 2:
@@ -251,11 +288,11 @@ def process_command(ftx, userInput):
                 ftx.market = currCommand[1].upper()
                 cp.green(f'Assign new MARKET: {ftx.market}')
 
+         # set fatfinger:
+        #  elif currCommand[0]
+
         else:
             pass
-
-        # set fatfinger:
-            # send to fatfinger function
 
         # creating alias
 
