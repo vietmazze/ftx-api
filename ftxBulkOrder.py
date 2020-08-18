@@ -35,7 +35,7 @@ class FtxClient:
         self._api_secret = os.getenv('FTX_HUNTER_SECRET')
         self._subaccount_name = "hunter-api"
         self.cp = ColorPrint()
-        self.market = "None"
+        self.market = None
         self.orderSide = None
         self.fatFinger = None
 
@@ -124,6 +124,56 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling get_open_orders: \n {e}')
 
+    def get_positions(self, show_avg_price: bool = False) -> List[dict]:
+        try:
+            return self._get('positions', {'showAvgPrice': show_avg_price})
+        except Exception as e:
+            self.cp.red(f'Exception when calling get_positions: \n {e}')
+
+    def get_position(self, name: str, show_avg_price: bool = False) -> dict:
+        try:
+            if name:
+                try:
+                    result = next(
+                        filter(lambda x: x['future'] == name, self.get_positions(show_avg_price)), None)
+                    self.cp.green(f"""Current position:
+                                    market: {result['future']},
+                                    entryPrice: {result['entryPrice']},
+                                    estimatedLiquidationPrice: {result['estimatedLiquidationPrice']},
+                                    initialMarginRequirement: {result['initialMarginRequirement']},
+                                    longOrderSize: {result['longOrderSize']},
+                                    maintenanceMarginRequirement: {result['maintenanceMarginRequirement']}
+                                    netSize: {result['netSize']},
+                                    openSize: {result['openSize']},
+                                    realizedPnl: {result['realizedPnl']},
+                                    shortOrderSize: {result['shortOrderSize']},
+                                    side: {result['side']},
+                                    size: {result['size']},
+                                    unrealizedPnl:{result['unrealizedPnl']}""")
+                except Exception as e:
+                    self.cp.red(f'Cannot find the position with: {name}')
+
+            else:
+                result = self.get_positions()
+                for item in result:
+                    self.cp.green(f"""Current position:
+                                market: {item['future']},
+                                entryPrice: {item['entryPrice']},
+                                estimatedLiquidationPrice: {item['estimatedLiquidationPrice']},
+                                initialMarginRequirement: {item['initialMarginRequirement']},
+                                longOrderSize: {item['longOrderSize']},
+                                maintenanceMarginRequirement: {item['maintenanceMarginRequirement']}
+                                netSize: {item['netSize']},
+                                openSize: {item['openSize']},
+                                realizedPnl: {item['realizedPnl']},
+                                shortOrderSize: {item['shortOrderSize']},
+                                side: {item['side']},
+                                size: {item['size']},
+                                unrealizedPnl:{item['unrealizedPnl']}""")
+
+        except Exception as e:
+            self.cp.red(f'Exception when calling get_position: \n {e}')
+
     def place_order(self, market: str, side: str, size: float, type: str = 'limit',
                     price: float = None, clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
         # cp.green(f'Place Order: {market},{side}, {size}, {price}, {type}')
@@ -150,7 +200,7 @@ class FtxClient:
 
     def place_conditional_order(
             self, market: str, side: str, size: float, type: str,
-            triggerPrice: float = None, clientId: str = None, limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
+            triggerPrice: float = None, clientId: str = None, limit_price: float = None, reduce_only: bool = True, cancel: bool = True,
             trail_value: float = None) -> dict:
         """
         To send a Stop Market order, set type='stop' and supply a trigger_price
@@ -190,14 +240,18 @@ class FtxClient:
         type = "limit" if len(currCommand) > 2 else "market"
 
         if size:
-            if price and type == "limit":
+            if size < self.fatFinger:
+                if price and type == "limit":
 
-                self.place_order(market=ftx.market, side=side,
-                                 size=size, price=price, type=type)
+                    self.place_order(market=ftx.market, side=side,
+                                     size=size, price=price, type=type)
+                else:
+
+                    self.place_order(
+                        market=ftx.market, side=side, size=size, type=type)
             else:
-
-                self.place_order(
-                    market=ftx.market, side=side, size=size, type=type)
+                self.cp.red(
+                    f'Size order exceeds fatfinger: {self.fatFinger}, unable to place order')
         else:
             self.cp.red(
                 f'Error in placing order, missing size or price entry.')
@@ -213,12 +267,9 @@ class FtxClient:
             type = "trailingStop"
 
         """ Assign command to price,size"""
-        if len(currCommand) >= 3:
-            price = currCommand[2] if len(currCommand) > 2 else None
-            size = currCommand[1] if len(currCommand) > 1 else None
-        # elif len(currCommand) < 3:
-        #     price = currCommand[1] if len(currCommand) > 1 else None
-        #     size = None
+
+        price = currCommand[2] if len(currCommand) > 2 else None
+        size = currCommand[1] if len(currCommand) > 1 else None
 
         if self.orderSide is not None:
             side = "buy" if self.orderSide == "sell" else "sell"
@@ -229,16 +280,20 @@ class FtxClient:
         limitPrice = currCommand[3] if len(currCommand) > 3 else None
 
         """Sending market or limit conditional order"""
-        if price:
-            if limitPrice:
-                self.place_conditional_order(
-                    market=self.market, side=side, size=size, triggerPrice=price, limit_price=limitPrice, type=type)
+        if size and size < self.fatFinger:
+            if price:
+                if limitPrice:
+                    self.place_conditional_order(
+                        market=self.market, side=side, size=size, triggerPrice=price, limit_price=limitPrice, type=type)
+                else:
+                    self.place_conditional_order(
+                        market=self.market, side=side, size=size, triggerPrice=price, type=type)
             else:
-                self.place_conditional_order(
-                    market=self.market, side=side, size=size, triggerPrice=price, type=type)
+                self.cp.red(
+                    f'Error in placing conditional order,need trigger price and/or limitPrice')
         else:
             self.cp.red(
-                f'Error in placing conditional order,need trigger price and/or limitPrice')
+                f'Error in placing conditional order,need size order or exceeds fatFinger: {self.fatFinger}')
 
 
 def process_command(ftx, userInput):
@@ -282,14 +337,11 @@ def process_command(ftx, userInput):
                 ftx.get_open_orders(ftx.market)
             else:
                 cp.red(f'Missing market to grab open orders, please reset instrument')
-         # show open positions
-        elif currCommand[0] == "position":
-            cp.green(f'Assign open Position:')
 
          # cancel orders
         elif currCommand[0] == "cancel":
             # diff types of cancel
-            if ftx.market:
+            if ftx.market is not None:
                 ftx.cancel_orders(ftx.market)
             else:
                 cp.red(f'Missing market to delete orders, please reset instrument')
@@ -302,7 +354,21 @@ def process_command(ftx, userInput):
                 cp.green(f'Assign new MARKET: {ftx.market}')
 
          # set fatfinger:
-        #  elif currCommand[0]
+        elif currCommand[0] == "fatfinger":
+            if len(currCommand) > 1:
+                if currCommand[1].isdigit():
+                    ftx.fatFinger = currCommand[1]
+                    cp.green(f'fatFinger set: {ftx.fatFinger}')
+                else:
+                    cp.red(
+                        f'Please input only digits for fatfinger: {currCommand[1]}')
+            else:
+                cp.red(f'Missing the value for fatfinger')
+        # show open positions
+        elif currCommand[0] == "position":
+            market = currCommand[1] if len(currCommand) > 1 else None
+
+            ftx.get_position(name=market)
 
         else:
             pass
@@ -339,10 +405,13 @@ if __name__ == '__main__':
 """
 instrument XTZ-PERP
 buy 1 1
-tp 1
-stop 1
+tp 1 1
+stop 1 1
 buy 1
 sell 1
 cancel
 order
+fatfinger 2
+position 
+position XTZ-PERP
 """
