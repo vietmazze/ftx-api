@@ -236,7 +236,15 @@ class FtxClient:
         side = currCommand[0] if len(currCommand) > 0 else None
         ftx.orderSide = side
         size = currCommand[1] if len(currCommand) > 1 else None
-        price = currCommand[2] if len(currCommand) > 2 else None
+
+        if len(currCommand) > 2:
+            if "@" in currCommand[2]:
+                price = currCommand[2].replace('@', '')
+            else:
+                price = currCommand[2]
+        else:
+            price = None
+
         type = "limit" if len(currCommand) > 2 else "market"
 
         if size:
@@ -267,17 +275,25 @@ class FtxClient:
             type = "trailingStop"
 
         """ Assign command to price,size"""
+        if len(currCommand) > 2:
+            if "@" in currCommand[2]:
+                price = currCommand[2].replace('@', '')
+            else:
+                price = currCommand[2]
+        else:
+            price = None
 
-        price = currCommand[2] if len(currCommand) > 2 else None
         size = currCommand[1] if len(currCommand) > 1 else None
 
         if self.orderSide is not None:
             side = "buy" if self.orderSide == "sell" else "sell"
+        elif len(currCommnand) > 3:
+            side = currCommand[3]
         else:
             self.cp.red(
-                f'Error in placing conditional order,need to make open order b4 trigger order')
+                f'Error in placing conditional order,need to assign a side order')
 
-        limitPrice = currCommand[3] if len(currCommand) > 3 else None
+        limitPrice = currCommand[4] if len(currCommand) > 4 else None
 
         """Sending market or limit conditional order"""
         if size and size < self.fatFinger:
@@ -378,6 +394,9 @@ def process_command(ftx, userInput):
 
 def main(ftx):
     input("Welcome to FTX bot, please start by creating your market... press enter to continue")
+    input("Set your market by typing: instrument NAME")
+    input("Please set your limit size fatfinger for this market: fatfinger SIZE")
+    input("Type /help for list of commands")
     while True:
         # main program
 
@@ -404,14 +423,15 @@ if __name__ == '__main__':
 
 """
 instrument XTZ-PERP
+fatfinger 2
 buy 1 1
-tp 1 1
-stop 1 1
+tp 1 @1 sell @
+stop 1 @1
 buy 1
 sell 1
 cancel
 order
-fatfinger 2
+
 position 
 position XTZ-PERP
 """
