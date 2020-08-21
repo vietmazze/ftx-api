@@ -21,13 +21,6 @@ logging.basicConfig(level=logging.INFO, format=(
 
 class FtxClient:
     _ENDPOINT = 'https://ftx.com/api/'
-    markets = {
-        "ATOM": "ATOM-PERP",
-        "XTZ": "XTZ-PERP",
-        "BTC": "BTC-PERP",
-        "ETH": "ETH-PERP"
-
-    }
 
     def __init__(self, subaccount_name=None) -> None:
         self._session = Session()
@@ -251,12 +244,12 @@ class FtxClient:
             if size < self.fatFinger:
                 if price and type == "limit":
 
-                    self.place_order(market=ftx.market, side=side,
+                    self.place_order(market=self.ftx.market, side=side,
                                      size=size, price=price, type=type)
                 else:
 
                     self.place_order(
-                        market=ftx.market, side=side, size=size, type=type)
+                        market=self.ftx.market, side=side, size=size, type=type)
             else:
                 self.cp.red(
                     f'Size order exceeds fatfinger: {self.fatFinger}, unable to place order')
@@ -310,128 +303,3 @@ class FtxClient:
         else:
             self.cp.red(
                 f'Error in placing conditional order,need size order or exceeds fatFinger: {self.fatFinger}')
-
-
-def process_command(ftx, userInput):
-    # dispatcher = {'instrument': ,
-    #               'fatfinger': ,
-    #               'buy': place_order,
-    #               'sell': ,
-    #               'alias': ,
-    #               'tp': place_conditional_order,
-    #               'trail': ,
-    #               'close':,
-    #               'cancel': cancel_orders,
-    #               'position': ,
-    #               'order': get_open_orders}
-
-    commands = collections.deque()
-
-    for input in userInput.split(";"):
-        # [buy 1 @8500, sell 1 @8600]
-        commands.append(input.strip())
-
-    while commands:
-        currCommand = commands.popleft().split(" ")
-
-        # placing orders
-        if currCommand[0] == "buy" or currCommand[0] == "sell":
-            ftx.place_order_cleanup(currCommand)
-
-        # placing conditional orders
-
-        elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
-
-            ftx.place_conditional_order_cleanup(currCommand)
-
-        # show open orders
-        elif currCommand[0] == "order":
-            market = currCommand[1] if len(currCommand) > 1 else None
-            if market:
-                ftx.get_open_orders(market)
-            elif not market and ftx.market:
-                ftx.get_open_orders(ftx.market)
-            else:
-                cp.red(f'Missing market to grab open orders, please reset instrument')
-
-         # cancel orders
-        elif currCommand[0] == "cancel":
-            # diff types of cancel
-            if ftx.market is not None:
-                ftx.cancel_orders(ftx.market)
-            else:
-                cp.red(f'Missing market to delete orders, please reset instrument')
-        # locking instrument
-        elif currCommand[0] == "instrument":
-            if len(currCommand) < 2:
-                cp.green(f'Current MARKET: {ftx.market}')
-            elif currCommand[1]:
-                ftx.market = currCommand[1].upper()
-                cp.green(f'Assign new MARKET: {ftx.market}')
-
-         # set fatfinger:
-        elif currCommand[0] == "fatfinger":
-            if len(currCommand) > 1:
-                if currCommand[1].isdigit():
-                    ftx.fatFinger = currCommand[1]
-                    cp.green(f'fatFinger set: {ftx.fatFinger}')
-                else:
-                    cp.red(
-                        f'Please input only digits for fatfinger: {currCommand[1]}')
-            else:
-                cp.red(f'Missing the value for fatfinger')
-        # show open positions
-        elif currCommand[0] == "position":
-            market = currCommand[1] if len(currCommand) > 1 else None
-
-            ftx.get_position(name=market)
-
-        else:
-            pass
-
-        # creating alias
-
-
-def main(ftx):
-    input("Welcome to FTX bot, please start by creating your market... press enter to continue")
-    input("Set your market by typing: instrument NAME")
-    input("Please set your limit size fatfinger for this market: fatfinger SIZE")
-    input("Type /help for list of commands")
-    while True:
-        # main program
-
-        while True:
-
-            userInput = input('Command: ')
-            break
-        if userInput == 'q':
-            break
-        else:
-            process_command(ftx, userInput)
-
-
-if __name__ == '__main__':
-    cp = ColorPrint()
-    ftx = FtxClient()
-    try:
-        main(ftx)
-    except Exception as ex:
-        cp.red(ex.args)
-    finally:
-        exit()
-
-
-"""
-instrument XTZ-PERP
-fatfinger 2
-buy 1 1
-tp 1 @1 sell @
-stop 1 @1
-buy 1
-sell 1
-cancel
-order
-
-position 
-position XTZ-PERP
-"""
