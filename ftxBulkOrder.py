@@ -85,6 +85,10 @@ class FtxClient:
     def list_markets(self) -> List[dict]:
         return self._get('markets')
 
+    ############################
+    # -CANCEL ORDERS
+    ############################
+
     def cancel_orders(self, market_name: str = None, conditional_orders: bool = False,
                       limit_orders: bool = False) -> dict:
         try:
@@ -98,13 +102,18 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling cancel_orders: \n {e}')
 
+    ############################
+    # -GET OPEN ORDER
+    ############################
+
     def get_open_orders(self, market: str = None) -> List[dict]:
         try:
-            result = self._get(f'orders', {'market': market})
-            if result is None:
+            open = self._get(f'orders', {'market': market})
+            conditional = self.get_open_conditional_orders(market)
+            if not open:
                 self.cp.green(f'No orders available for {market}')
             else:
-                for item in result:
+                for item in open:
                     self.cp.green(f"""{item['type']} order is in placed:
                                 market: {item['market']},
                                 size: {item['size']},
@@ -113,15 +122,42 @@ class FtxClient:
                                 clientId: {item['clientId']},
                                 id: {item['id']}""")
 
+            if not conditional:
+                self.cp.green(f'No orders available for {market}')
+            else:
+                for item in conditional:
+                    self.cp.green(f"""{item['type']} order is in placed:
+                                market: {item['market']},
+                                size: {item['size']},
+                                price: {item['price']},
+                                side: {item['side']},
+                                clientId: {item['clientId']},
+                                id: {item['id']}""")
         except Exception as e:
             self.cp.red(
                 f'Exception when calling get_open_orders: \n {e}')
+
+    ############################
+    # -GET OPEN CONDITIONAL ORDER
+    ############################
+
+    def get_open_conditional_orders(self, market: str = None) -> List[dict]:
+        try:
+            return self._get(f'conditional_orders', {'market': market})
+
+        except Exception as e:
+            self.cp.red(
+                f'Exception when calling get_open_conditional_orders: \n {e}')
 
     def get_positions(self, show_avg_price: bool = False) -> List[dict]:
         try:
             return self._get('positions', {'showAvgPrice': show_avg_price})
         except Exception as e:
             self.cp.red(f'Exception when calling get_positions: \n {e}')
+
+    ############################
+    # -GET POSITION
+    ############################
 
     def get_position(self, name: str, show_avg_price: bool = False) -> dict:
         try:
@@ -167,6 +203,10 @@ class FtxClient:
         except Exception as e:
             self.cp.red(f'Exception when calling get_position: \n {e}')
 
+    ############################
+    # -PLACE ORDER
+    ############################
+
     def place_order(self, market: str, side: str, size: float, type: str = 'limit',
                     price: float = None, clientId: str = None, reduce_only: bool = False, ioc: bool = False, post_only: bool = False) -> dict:
         # cp.green(f'Place Order: {market},{side}, {size}, {price}, {type}')
@@ -190,6 +230,10 @@ class FtxClient:
 
         except Exception as e:
             self.cp.red(f'Exception when calling place_order: \n {e}')
+
+    ############################
+    # -PLACE CONDITIONAL ORDER
+    ############################
 
     def place_conditional_order(
             self, market: str, side: str, size: float, type: str,
@@ -223,83 +267,99 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling place_conditional_order: \n {e}')
 
-    """ Clean up order before placing """
-
+    ##############################
+    # -ORDER CLEANUP
+    ###############################
     def place_order_cleanup(self, currCommand):
-        side = currCommand[0] if len(currCommand) > 0 else None
-        ftx.orderSide = side
-        size = currCommand[1] if len(currCommand) > 1 else None
+        try:
 
-        if len(currCommand) > 2:
-            if "@" in currCommand[2]:
-                price = currCommand[2].replace('@', '')
-            else:
-                price = currCommand[2]
-        else:
-            price = None
+            side = currCommand[0] if len(currCommand) > 0 else None
+            self.orderSide = side
+            size = currCommand[1] if len(currCommand) > 1 else None
 
-        type = "limit" if len(currCommand) > 2 else "market"
-
-        if size:
-            if size < self.fatFinger:
-                if price and type == "limit":
-
-                    self.place_order(market=self.ftx.market, side=side,
-                                     size=size, price=price, type=type)
+            if len(currCommand) > 2:
+                if "@" in currCommand[2]:
+                    price = currCommand[2].replace('@', '')
                 else:
+                    price = currCommand[2]
+            else:
+                price = None
 
-                    self.place_order(
-                        market=self.ftx.market, side=side, size=size, type=type)
+            type = "limit" if len(currCommand) > 2 else "market"
+
+            if size:
+                if size < self.fatFinger:
+                    if price and type == "limit":
+
+                        self.place_order(market=self.market, side=side,
+                                         size=size, price=price, type=type)
+                    else:
+
+                        self.place_order(
+                            market=self.market, side=side, size=size, type=type)
+                else:
+                    self.cp.red(
+                        f'Size order exceeds fatfinger: {self.fatFinger}, unable to place order')
             else:
                 self.cp.red(
-                    f'Size order exceeds fatfinger: {self.fatFinger}, unable to place order')
-        else:
-            self.cp.red(
-                f'Error in placing order, missing size or price entry.')
+                    f'Error in placing order, missing size or price entry.')
+        except Exception as e:
+            self.cp.red(f'Error in place_order_cleanup: {e} ')
 
-    """ Clean up conditional order before placing """
-
+    ############################
+    # -CONDITIONAL ORDER CLEANUP
+    ############################
     def place_conditional_order_cleanup(self, currCommand):
         """Setting proper type name to send"""
-        type = currCommand[0] if len(currCommand) > 0 else None
-        if type == "tp":
-            type = "takeProfit"
-        if type == "trail":
-            type = "trailingStop"
 
-        """ Assign command to price,size"""
-        if len(currCommand) > 2:
-            if "@" in currCommand[2]:
-                price = currCommand[2].replace('@', '')
-            else:
-                price = currCommand[2]
-        else:
-            price = None
+        self.cp.red(f'{currCommand}')
+        try:
+            type = currCommand[0] if len(currCommand) > 0 else None
+            if type == "tp":
+                type = "takeProfit"
+            if type == "trail":
+                type = "trailingStop"
 
-        size = currCommand[1] if len(currCommand) > 1 else None
-
-        if self.orderSide is not None:
-            side = "buy" if self.orderSide == "sell" else "sell"
-        elif len(currCommnand) > 3:
-            side = currCommand[3]
-        else:
-            self.cp.red(
-                f'Error in placing conditional order,need to assign a side order')
-
-        limitPrice = currCommand[4] if len(currCommand) > 4 else None
-
-        """Sending market or limit conditional order"""
-        if size and size < self.fatFinger:
-            if price:
-                if limitPrice:
-                    self.place_conditional_order(
-                        market=self.market, side=side, size=size, triggerPrice=price, limit_price=limitPrice, type=type)
+            """ Assign command to price,size"""
+            if len(currCommand) > 2:
+                if "@" in currCommand[2]:
+                    price = currCommand[2].replace('@', '')
                 else:
-                    self.place_conditional_order(
-                        market=self.market, side=side, size=size, triggerPrice=price, type=type)
+                    price = currCommand[2]
+            else:
+                price = None
+
+            size = currCommand[1] if len(currCommand) > 1 else None
+
+            try:
+
+                if self.orderSide:
+                    side = "buy" if self.orderSide == "sell" else "sell"
+                elif len(currCommand) > 3:
+                    side = currCommand[3]
+                else:
+                    self.cp.red(
+                        f'Error in placing conditional order,need to assign a side order')
+            except Exception as e:
+                self.cp.red(
+                    'cleanup conditional orderSide not assign correctly')
+
+            limitPrice = currCommand[4] if len(currCommand) > 4 else None
+            self.cp.red(f'{type},{size},{price},{side}')
+            """Sending market or limit conditional order"""
+            if size and size < self.fatFinger:
+                if price:
+                    if limitPrice:
+                        self.place_conditional_order(
+                            market=self.market, side=side, size=size, triggerPrice=price, limit_price=limitPrice, type=type)
+                    else:
+                        self.place_conditional_order(
+                            market=self.market, side=side, size=size, triggerPrice=price, type=type)
+                else:
+                    self.cp.red(
+                        f'Error in placing conditional order cleanup,need trigger price and/or limitPrice')
             else:
                 self.cp.red(
-                    f'Error in placing conditional order,need trigger price and/or limitPrice')
-        else:
-            self.cp.red(
-                f'Error in placing conditional order,need size order or exceeds fatFinger: {self.fatFinger}')
+                    f'Error in placing conditional order cleanup,need size order or exceeds fatFinger: {self.fatFinger}')
+        except Exception as e:
+            self.cp.red(f'Error in place_conditional_order_cleanup: {e}')
