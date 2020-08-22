@@ -119,8 +119,8 @@ class FtxClient:
                                 size: {item['size']},
                                 price: {item['price']},
                                 side: {item['side']},
-                                clientId: {item['clientId']},
-                                id: {item['id']}""")
+                                reduceOnly: {item['reduceOnly']}
+                                """)
 
             if not conditional:
                 self.cp.green(f'No orders available for {market}')
@@ -129,10 +129,10 @@ class FtxClient:
                     self.cp.green(f"""{item['type']} order is in placed:
                                 market: {item['market']},
                                 size: {item['size']},
-                                price: {item['price']},
+                                price: {item['orderPrice']},
                                 side: {item['side']},
-                                clientId: {item['clientId']},
-                                id: {item['id']}""")
+                                reduceOnly: {item['reduceOnly']}
+                                """)
         except Exception as e:
             self.cp.red(
                 f'Exception when calling get_open_orders: \n {e}')
@@ -168,6 +168,8 @@ class FtxClient:
                     self.cp.green(f"""Current position:
                                     market: {result['future']},
                                     entryPrice: {result['entryPrice']},
+                                    side: {result['side']},
+                                    size: {result['size']},
                                     estimatedLiquidationPrice: {result['estimatedLiquidationPrice']},
                                     initialMarginRequirement: {result['initialMarginRequirement']},
                                     longOrderSize: {result['longOrderSize']},
@@ -176,8 +178,6 @@ class FtxClient:
                                     openSize: {result['openSize']},
                                     realizedPnl: {result['realizedPnl']},
                                     shortOrderSize: {result['shortOrderSize']},
-                                    side: {result['side']},
-                                    size: {result['size']},
                                     unrealizedPnl:{result['unrealizedPnl']}""")
                 except Exception as e:
                     self.cp.red(f'Cannot find the position with: {name}')
@@ -188,6 +188,8 @@ class FtxClient:
                     self.cp.green(f"""Current position:
                                 market: {item['future']},
                                 entryPrice: {item['entryPrice']},
+                                side: {item['side']},
+                                size: {item['size']},
                                 estimatedLiquidationPrice: {item['estimatedLiquidationPrice']},
                                 initialMarginRequirement: {item['initialMarginRequirement']},
                                 longOrderSize: {item['longOrderSize']},
@@ -196,8 +198,6 @@ class FtxClient:
                                 openSize: {item['openSize']},
                                 realizedPnl: {item['realizedPnl']},
                                 shortOrderSize: {item['shortOrderSize']},
-                                side: {item['side']},
-                                size: {item['size']},
                                 unrealizedPnl:{item['unrealizedPnl']}""")
 
         except Exception as e:
@@ -261,7 +261,10 @@ class FtxClient:
                               market: {result['market']},
                               size: {result['size']},
                               triggerPrice: {result['triggerPrice']},
-                              side: {result['side']}""")
+                              side: {result['side']},
+                              reduceOnly: {item['reduceOnly']},
+                              orderType: {item['orderType']}
+                              """)
 
         except Exception as e:
             self.cp.red(
