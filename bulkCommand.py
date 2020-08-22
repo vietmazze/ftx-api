@@ -44,82 +44,87 @@ def process_command(ftx, userInput):
 
     while commands:
         currCommand = commands.popleft().split(" ")
+        try:
+            ######################
+            # -PLACING ORDER
+            ######################
+            if currCommand[0] == "buy" or currCommand[0] == "sell":
+                ftx.place_order_cleanup(currCommand)
 
-        ######################
-        # -PLACING ORDER
-        ######################
-        if currCommand[0] == "buy" or currCommand[0] == "sell":
-            ftx.place_order_cleanup(currCommand)
-        ######################
-        # -PLACING CONDITIONAL ORDER
-        ######################
-        elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
+            ######################
+            # -PLACING CONDITIONAL ORDER
+            ######################
 
-            ftx.place_conditional_order_cleanup(currCommand)
-        ######################
-        # -SHOW OPEN ORDERS
-        ######################
-        elif currCommand[0] == "order":
-            market = currCommand[1] if len(currCommand) > 1 else None
+            elif currCommand[0] == "stop" or currCommand[0] == "tp" or currCommand[0] == "trail":
 
-            if market:
-                ftx.get_open_orders(market)
-            elif not market and ftx.market:
-                ftx.get_open_orders(ftx.market)
-            else:
-                cp.red(f'Missing market to grab open orders, please reset instrument')
-        ######################
-        # -CANCEL ORDERS
-        ######################
-        elif currCommand[0] == "cancel":
-            # diff types of cancel
-            if ftx.market is not None:
-                ftx.cancel_orders(ftx.market)
-            else:
-                cp.red(f'Missing market to delete orders, please reset instrument')
-        ######################
-        # -LOCKING INSTRUMENT
-        ######################
-        elif currCommand[0] == "instrument":
-            if len(currCommand) < 2:
-                cp.green(f'Current MARKET: {ftx.market}')
-            elif currCommand[1]:
-                ftx.market = currCommand[1].upper()
-                cp.green(f'Assign new MARKET: {ftx.market}')
-        ######################
-        # -SET FATFINGER:
-        ######################
-        elif currCommand[0] == "fatfinger":
-            if len(currCommand) > 1:
-                if float(currCommand[1]):
-                    ftx.fatFinger = currCommand[1]
-                    cp.green(f'fatFinger set: {ftx.fatFinger}')
+                ftx.place_conditional_order_cleanup(currCommand)
+
+            ######################
+            # -SHOW OPEN ORDERS
+            ######################
+            elif currCommand[0] == "order":
+                market = currCommand[1] if len(currCommand) > 1 else None
+                if market:
+                    ftx.get_open_orders(market)
+                elif not market and ftx.market:
+                    ftx.get_open_orders(ftx.market)
                 else:
                     cp.red(
-                        f'Please input only digits for fatfinger: {currCommand[1]}')
+                        f'Missing market to grab open orders, please reset instrument')
+
+            ######################
+            # -CANCEL ORDERS
+            ######################
+            elif currCommand[0] == "cancel":
+                # diff types of cancel
+                if ftx.market is not None:
+                    ftx.cancel_orders(ftx.market)
+                else:
+                    cp.red(
+                        f'Missing market to delete orders, please reset instrument')
+            ######################
+            # -LOCKING INSTRUMENT
+            ######################
+            elif currCommand[0] == "instrument":
+                if len(currCommand) < 2:
+                    cp.green(f'Current MARKET: {ftx.market}')
+                elif currCommand[1]:
+                    ftx.market = currCommand[1].upper()
+                    cp.green(f'Assign new MARKET: {ftx.market}')
+
+            ######################
+            # -SET FATFINGER:
+            ######################
+            elif currCommand[0] == "fatfinger":
+                if len(currCommand) > 1:
+                    if float(currCommand[1]):
+                        ftx.fatFinger = currCommand[1]
+                        cp.green(f'fatFinger set: {ftx.fatFinger}')
+                    else:
+                        cp.red(
+                            f'Please input only digits for fatfinger: {currCommand[1]}')
+                else:
+                    cp.red(f'Missing the value for fatfinger')
+            ######################
+            # -SHOW OPEN POSITIONS
+            ######################
+            elif currCommand[0] == "position":
+                market = currCommand[1] if len(currCommand) > 1 else None
+
+                ftx.get_position(name=market)
             else:
-                cp.red(f'Missing the value for fatfinger')
-        ######################
-        # -SHOW OPEN POSITIONS
-        ######################
-        elif currCommand[0] == "position":
-            market = currCommand[1] if len(currCommand) > 1 else None
-
-            ftx.get_position(name=market)
-
-        else:
-            pass
-
-        # creating alias
+                cp.red(
+                    f'Error in process_command, please type  your command correctly: {currCommand}')
+        except Exception as e:
+            cp.red(
+                f'Error in process_command, please type correctly your command: {currCommand}  \n  {e} ')
 
 
 def main(ftx):
     input("Welcome to FTX bot, please start by creating your market... press enter to continue")
-    input("Set your market by typing: instrument NAME")
-    input("Please set your limit size fatfinger for this market: fatfinger SIZE")
-    input("Type /help for list of commands")
     while True:
         # main program
+
         try:
             while True:
 
