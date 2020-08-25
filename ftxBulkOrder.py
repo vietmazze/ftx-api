@@ -274,6 +274,7 @@ class FtxClient:
     # -ORDER CLEANUP
     ###############################
     def place_order_cleanup(self, currCommand):
+
         try:
 
             side = currCommand[0] if len(currCommand) > 0 else None
@@ -289,9 +290,10 @@ class FtxClient:
                 price = None
 
             type = "limit" if len(currCommand) > 2 else "market"
-
+            self.cp.green(f'{side},{size},{price},{type}')
             if size:
                 if size < self.fatFinger:
+
                     if price and type == "limit":
 
                         self.place_order(market=self.market, side=side,

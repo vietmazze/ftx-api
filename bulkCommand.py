@@ -112,12 +112,51 @@ def process_command(ftx, userInput):
                 market = currCommand[1] if len(currCommand) > 1 else None
 
                 ftx.get_position(name=market)
+
+            ######################
+            # - SPLITTING ORDERS
+            # ! split [sell] [0.1] into [10] from [11288] to [11355]
+            ######################
+            elif currCommand[0] == "split":
+                side = currCommand[1] if len(currCommand) > 1 else None
+                size = currCommand[2] if len(currCommand) > 2 else None
+                total = float(currCommand[4]) if len(currCommand) > 4 else None
+                start = float(currCommand[6]) if len(currCommand) > 6 else None
+                end = float((currCommand[8])) if len(currCommand) > 7 else None
+                if len(currCommand) > 8:
+                    order_list = split_equal_parts(start, end, total)
+                    if not None in (side, size, total, start, end):
+                        size = float(size) / total
+                        while total > 0 and len(order_list) > 0:
+                            ftx.place_order_cleanup(
+                                [side, str(size), str(order_list.pop())])
+                            total -= 1
+
+                    else:
+                        cp.red(
+                            f'One of the values in split order is missing, please check your command: \n {currCommand}')
+
+                else:
+                    cp.red(
+                        f'Split order requires all 9 words typed out, please check your command: \n {currCommand}')
             else:
                 cp.red(
-                    f'Error in process_command, please type  your command correctly: {currCommand}')
+                    f'Error in process_command, please use only one of those command option: {currCommand}')
         except Exception as e:
             cp.red(
-                f'Error in process_command, please type correctly your command: {currCommand}  \n  {e} ')
+                f'Error in process_command, please restart your program:  {currCommand}  \n  {e} ')
+
+
+def split_equal_parts(start, end, total):
+    price = []
+    avg_price = (end - start) // total
+
+    while total > 0:
+        curr = (start + avg_price)
+        price.append(curr)
+        start = curr
+        total -= 1
+    return price
 
 
 def main(ftx):
