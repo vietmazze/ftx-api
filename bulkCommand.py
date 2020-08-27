@@ -8,7 +8,7 @@ import hmac
 import hashlib
 import os
 import urllib
-
+import numpy as np
 from ftxBulkOrder import FtxClient
 from dotenv import load_dotenv
 
@@ -125,16 +125,17 @@ def process_command(ftx, userInput):
                 end = float((currCommand[8])) if len(currCommand) > 7 else None
                 if len(currCommand) > 8:
                     order_list = split_equal_parts(start, end, total)
-                    if not None in (side, size, total, start, end):
-                        size = float(size) / total
-                        while total > 0 and len(order_list) > 0:
-                            ftx.place_order_cleanup(
-                                [side, str(size), str(order_list.pop())])
-                            total -= 1
+                    cp.green(order_list)
+                    # if not None in (side, size, total, start, end):
+                    #     size = float(size) / total
+                    #     while total > 0 and len(order_list) > 0:
+                    #         ftx.place_order_cleanup(
+                    #             [side, str(size), str(order_list.pop())])
+                    #         total -= 1
 
-                    else:
-                        cp.red(
-                            f'One of the values in split order is missing, please check your command: \n {currCommand}')
+                    # else:
+                    #     cp.red(
+                    #         f'One of the values in split order is missing, please check your command: \n {currCommand}')
 
                 else:
                     cp.red(
@@ -148,14 +149,14 @@ def process_command(ftx, userInput):
 
 
 def split_equal_parts(start, end, total):
-    price = []
+    price = [start]
     avg_price = (end - start) // total
-
-    while total > 0:
+    while total > 2:
         curr = (start + avg_price)
         price.append(curr)
         start = curr
         total -= 1
+    price.append(end)
     return price
 
 
