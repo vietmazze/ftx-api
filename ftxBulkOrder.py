@@ -114,25 +114,15 @@ class FtxClient:
                 self.cp.green(f'No orders available for {market}')
             else:
                 for item in open:
-                    self.cp.green(f"""{item['type']} order is in placed:
-                                market: {item['market']},
-                                size: {item['size']},
-                                price: {item['price']},
-                                side: {item['side']},
-                                reduceOnly: {item['reduceOnly']}
-                                """)
+                    self.cp.green(
+                        f"""{item['type']} order-market: {item['market']},size: {item['size']},price: {item['price']},side: {item['side']},reduceOnly: {item['reduceOnly']}""")
 
             if not conditional:
                 self.cp.green(f'No orders available for {market}')
             else:
                 for item in conditional:
-                    self.cp.green(f"""{item['type']} order is in placed:
-                                market: {item['market']},
-                                size: {item['size']},
-                                price: {item['orderPrice']},
-                                side: {item['side']},
-                                reduceOnly: {item['reduceOnly']}
-                                """)
+                    self.cp.green(
+                        f"""{item['type']} order:market: {item['market']},size: {item['size']},price: {item['orderPrice']},side: {item['side']},reduceOnly: {item['reduceOnly']}""")
         except Exception as e:
             self.cp.red(
                 f'Exception when calling get_open_orders: \n {e}')
@@ -149,15 +139,15 @@ class FtxClient:
             self.cp.red(
                 f'Exception when calling get_open_conditional_orders: \n {e}')
 
+    ############################
+    # -GET POSITION
+    ############################
+
     def get_positions(self, show_avg_price: bool = False) -> List[dict]:
         try:
             return self._get('positions', {'showAvgPrice': show_avg_price})
         except Exception as e:
             self.cp.red(f'Exception when calling get_positions: \n {e}')
-
-    ############################
-    # -GET POSITION
-    ############################
 
     def get_position(self, name: str, show_avg_price: bool = False) -> dict:
         try:
@@ -173,7 +163,8 @@ class FtxClient:
                                     estimatedLiquidationPrice: {result['estimatedLiquidationPrice']},
                                     initialMarginRequirement: {result['initialMarginRequirement']},
                                     longOrderSize: {result['longOrderSize']},
-                                    maintenanceMarginRequirement: {result['maintenanceMarginRequirement']}
+                                    maintenanceMarginRequirement: {
+                                        result['maintenanceMarginRequirement']}
                                     netSize: {result['netSize']},
                                     openSize: {result['openSize']},
                                     realizedPnl: {result['realizedPnl']},
@@ -193,7 +184,8 @@ class FtxClient:
                                 estimatedLiquidationPrice: {item['estimatedLiquidationPrice']},
                                 initialMarginRequirement: {item['initialMarginRequirement']},
                                 longOrderSize: {item['longOrderSize']},
-                                maintenanceMarginRequirement: {item['maintenanceMarginRequirement']}
+                                maintenanceMarginRequirement: {
+                                    item['maintenanceMarginRequirement']}
                                 netSize: {item['netSize']},
                                 openSize: {item['openSize']},
                                 realizedPnl: {item['realizedPnl']},
@@ -221,12 +213,8 @@ class FtxClient:
                                            'postOnly': post_only,
                                            'clientId': clientId,
                                            })
-            self.cp.green(f"""{result['type']} order has been created:
-                          clientId - {result['clientId']},
-                          market: {result['market']},
-                          size: {result['size']},
-                          price: {result['price']},
-                          side: {result['side']}""")
+            self.cp.green(
+                f"""{result['type']} order-market: {result['market']},size: {result['size']},price: {result['price']},side: {result['side']}""")
 
         except Exception as e:
             self.cp.red(f'Exception when calling place_order: \n {e}')
@@ -257,14 +245,7 @@ class FtxClient:
                                 {'market': market, 'side': side, 'triggerPrice': triggerPrice,
                                  'size': size, 'reduceOnly': reduce_only, 'type': type,
                                  'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
-            self.cp.green(f"""{result['type']} order has been created:
-                              market: {result['market']},
-                              size: {result['size']},
-                              triggerPrice: {result['triggerPrice']},
-                              side: {result['side']},
-                              reduceOnly: {item['reduceOnly']},
-                              orderType: {item['orderType']}
-                              """)
+            self.cp.green(f"""{result['type']} order- market: {result['market']},size: {result['size']},triggerPrice: {result['triggerPrice']}, limitPrice: {result['orderPrice']},side: {result['side']},reduceOnly: {result['reduceOnly']},orderType: {result['orderType']}""")
 
         except Exception as e:
             self.cp.red(
@@ -325,7 +306,9 @@ class FtxClient:
             if type == "trail":
                 type = "trailingStop"
 
-            """ Assign command to price,size"""
+            size = currCommand[1] if len(currCommand) > 1 else None
+
+            """ Assign command to price"""
             if len(currCommand) > 2:
                 if "@" in currCommand[2]:
                     price = currCommand[2].replace('@', '')
@@ -334,11 +317,18 @@ class FtxClient:
             else:
                 price = None
 
-            size = currCommand[1] if len(currCommand) > 1 else None
-
+            """ Assign command to limit price stops"""
+            if len(currCommand) > 5:
+                if "@" in currCommand[4]:
+                    limitPrice = currCommand[4].replace('@', '')
+                else:
+                    limitPrice = currCommand[4]
+            else:
+                limitPrice = None
+            """If orderSide not available then it's just a stop order put in place"""
             try:
 
-                if self.orderSide:
+                if self.orderSide and not limitPrice:
                     side = "buy" if self.orderSide == "sell" else "sell"
                 elif len(currCommand) > 3:
                     side = currCommand[3]
@@ -349,7 +339,6 @@ class FtxClient:
                 self.cp.red(
                     'cleanup conditional orderSide not assign correctly')
 
-            limitPrice = currCommand[4] if len(currCommand) > 4 else None
             self.cp.red(f'{type},{size},{price},{side}')
             """Sending market or limit conditional order"""
             if size and size < self.fatFinger:
