@@ -198,19 +198,30 @@ def split_equal_parts(start, end, total):
 ######################################
 def show_command():
     cp.green(f"""
-            [instrument] [XTZ-PERP]
-            [fatfinger] [#]
-            market order - [type] [size] - buy 1000
-            limit order - [type] [size] [price] - buy 1 @1
-            stop market - [type] [size] [price] - stop 1 @1
-            stop limit - [type] [size] [price] [side] [limitPrice] - stop 1 @1 sell @1
-            take profit market - [type] [size] [price] - tp 1 @1
-            take profit limit - [type] [size] [price] [side] [limitPrice] - tp 1 @1 sell @1
-            split order - split [type] [size] into [total] from [price 1] to [price 2] - split [sell] [0.1] into [10] from [11288] to [11355]
-            cancel - cancel all orders
-            order - show all limit and stops open order
-            position  - show all current positions
-            position [market] - show specific market""")
+            INIT MARKET required before start:
+                [instrument] [XTZ-PERP]
+                [fatfinger] [#]
+            BUY-SELL ORDERS:
+                market order - [type] [size] - buy 1000
+                limit order - [type] [size] [price] - buy 1 @1
+                stop market - [type] [size] [price] - stop 1 @1
+                stop limit - [type] [size] [price] [side] [limitPrice] - stop 1 @1 sell @1
+                take profit market - [type] [size] [price] - tp 1 @1
+                take profit limit - [type] [size] [price] [side] [limitPrice] - tp 1 @1 sell @1
+            SPLIT ORDERS:
+                split [type] [size] into [total] from [price 1] to [price 2] [buy/sell] 
+                split order - split [sell] [0.1] into [10] from [11288] to [11355] (no buy/sell) 
+                split conditional order - split [stop/tp] [0.1] into [10] from [11288] to [11355] [buy/sell]
+            CANCEL ORDERS:
+                cancel - cancel all orders
+                cancel limit - cancel all limit buy/sell
+                cancel conditional - cancel all stop/tp
+                cancel 123456 - cancel specific buy/sell limit order ID
+                cancel conditional 123456 - cancel specific stop/tp order ID
+            SHOW ORDERS:
+                order - show all limit and stops open order
+                position  - show all current positions
+                position [market] - show specific market""")
 
 
 def main(ftx):
