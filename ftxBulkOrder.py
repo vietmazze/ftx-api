@@ -90,18 +90,40 @@ class FtxClient:
     ############################
 
     def cancel_orders(self, market_name: str = None, conditional_orders: bool = False,
-                      limit_orders: bool = False) -> dict:
+                      limit_orders: bool = False, cancel_id: str = None, conditional_id: str = None) -> dict:
         try:
-            result = self._delete(f'orders', {'market': market_name,
-                                              'conditionalOrdersOnly': conditional_orders,
-                                              'limitOrdersOnly': limit_orders,
-                                              })
+            result = ""
+            if conditional_id:
+                try:
+
+                    result = self._delete(f'conditional_orders/{conditional_id}', {'market': market_name,
+                                                                                   'conditionalOrdersOnly': conditional_orders,
+                                                                                   'limitOrdersOnly': limit_orders, })
+
+                except Exception as e:
+                    self.cp.red(
+                        f'Exception when calling cancel_orders for conditional ID order: \n {e}')
+            else:
+                try:
+                    if cancel_id is not None:
+                        result = self._delete(f'orders/{cancel_id}', {'market': market_name,
+                                                                      'conditionalOrdersOnly': conditional_orders,
+                                                                      'limitOrdersOnly': limit_orders,
+                                                                      })
+
+                    else:
+                        result = self._delete(f'orders', {'market': market_name,
+                                                          'conditionalOrdersOnly': conditional_orders,
+                                                          'limitOrdersOnly': limit_orders, })
+
+                except Exception as e:
+                    self.cp.red(
+                        f'Exception when calling cancel_orders for limit ID orders, or all orders: \n {e}')
 
             self.cp.green(f"{result}")
-        except Exception as e:
-            self.cp.red(
-                f'Exception when calling cancel_orders: \n {e}')
 
+        except Exception as e:
+            self.cp.red(f'Exception when calling cancel_orders: \n {e}')
     ############################
     # -GET OPEN ORDER
     ############################

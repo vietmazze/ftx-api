@@ -65,9 +65,28 @@ def process_command(ftx, userInput):
             # -CANCEL ORDERS
             ######################
             elif currCommand[0] == "cancel":
+                cancel_type = currCommand[1] if len(currCommand) >= 2 else None
+                conditional_id = currCommand[2] if len(
+                    currCommand) >= 3 else None
                 # diff types of cancel
+
                 if ftx.market is not None:
-                    ftx.cancel_orders(ftx.market)
+                    if cancel_type:
+                        if cancel_type == "conditional":
+                            if conditional_id:
+                                ftx.cancel_orders(
+                                    market_name=ftx.market, conditional_id=conditional_id)
+                            else:
+                                ftx.cancel_orders(
+                                    market_name=ftx.market, conditional_orders=True)
+                        elif cancel_type == "limit":
+                            ftx.cancel_orders(
+                                market_name=ftx.market, limit_orders=True)
+                        elif cancel_type.isnumeric():
+                            ftx.cancel_orders(
+                                market_name=ftx.market, cancel_id=cancel_type)
+                    else:
+                        ftx.cancel_orders(market_name=ftx.market)
                 else:
                     cp.red(
                         f'Missing market to delete orders, please reset instrument')
