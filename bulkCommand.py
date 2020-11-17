@@ -86,8 +86,8 @@ def process_command(ftx, userInput):
             ######################
             elif currCommand[0] == "fatfinger":
                 if len(currCommand) > 1:
-                    if float(currCommand[1]):
-                        ftx.fatFinger = currCommand[1]
+                    if currCommand[1]:
+                        ftx.fatFinger = float(currCommand[1])
                         cp.green(f'fatFinger set: {ftx.fatFinger}')
                     else:
                         cp.red(
@@ -112,16 +112,27 @@ def process_command(ftx, userInput):
                 total = float(currCommand[4]) if len(currCommand) > 4 else None
                 start = float(currCommand[6]) if len(currCommand) > 6 else None
                 end = float((currCommand[8])) if len(currCommand) > 7 else None
+                limitOrder = currCommand[9] if len(currCommand) > 8 else None
                 if len(currCommand) > 8:
                     order_list = split_equal_parts(start, end, total)
+                    size = float(size) / total
                     cp.green(order_list)
                     if not None in (side, size, total, start, end):
-                        size = float(size) / total
-                        while total > 0 and len(order_list) > 0:
-                            ftx.place_order_cleanup(
-                                [side, str(size), str(order_list.pop())])
-                            total -= 1
 
+                        if side == "buy" or side == "sell":
+                            while total > 0 and len(order_list) > 0:
+
+                                ftx.place_order_cleanup(
+                                    [side, float(size), str(order_list.pop())])
+                                total -= 1
+                        elif side == "stop" or side == "tp" or side == "trail":
+
+                            while total > 0 and len(order_list) > 0:
+                                price = str(order_list.pop())
+
+                                ftx.place_conditional_order_cleanup(
+                                    [side, float(size), price, limitOrder, price])
+                                total -= 1
                     else:
                         cp.red(
                             f'One of the values in split order is missing, please check your command: \n {currCommand}')

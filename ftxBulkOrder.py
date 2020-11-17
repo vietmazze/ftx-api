@@ -154,44 +154,32 @@ class FtxClient:
             if name:
                 try:
                     result = next(
-                        filter(lambda x: x['future'] == name, self.get_positions(show_avg_price)), None)
+                        filter(lambda x: x['future'] == name.upper(), self.get_positions(show_avg_price)), None)
                     self.cp.green(f"""Current position:
                                     market: {result['future']},
                                     entryPrice: {result['entryPrice']},
                                     side: {result['side']},
                                     size: {result['size']},
-                                    estimatedLiquidationPrice: {result['estimatedLiquidationPrice']},
-                                    initialMarginRequirement: {result['initialMarginRequirement']},
-                                    longOrderSize: {result['longOrderSize']},
-                                    maintenanceMarginRequirement: {
-                                        result['maintenanceMarginRequirement']}
-                                    netSize: {result['netSize']},
+                                    liquidiation: {result['estimatedLiquidationPrice']},
                                     openSize: {result['openSize']},
                                     realizedPnl: {result['realizedPnl']},
-                                    shortOrderSize: {result['shortOrderSize']},
                                     unrealizedPnl:{result['unrealizedPnl']}""")
                 except Exception as e:
                     self.cp.red(f'Cannot find the position with: {name}')
 
             else:
-                result = self.get_positions()
-                for item in result:
-                    self.cp.green(f"""Current position:
-                                market: {item['future']},
-                                entryPrice: {item['entryPrice']},
-                                side: {item['side']},
-                                size: {item['size']},
-                                estimatedLiquidationPrice: {item['estimatedLiquidationPrice']},
-                                initialMarginRequirement: {item['initialMarginRequirement']},
-                                longOrderSize: {item['longOrderSize']},
-                                maintenanceMarginRequirement: {
-                                    item['maintenanceMarginRequirement']}
-                                netSize: {item['netSize']},
-                                openSize: {item['openSize']},
-                                realizedPnl: {item['realizedPnl']},
-                                shortOrderSize: {item['shortOrderSize']},
-                                unrealizedPnl:{item['unrealizedPnl']}""")
-
+                results = self.get_positions(show_avg_price)
+                for result in results:
+                    if float(result['size']) > 0 and float(result['openSize']) > 0:
+                        self.cp.green(f"""Current position:
+                                        market: {result['future']},
+                                        entryPrice: {result['entryPrice']},
+                                        side: {result['side']},
+                                        size: {result['size']},
+                                        liquidation: {result['estimatedLiquidationPrice']},  
+                                        openSize: {result['openSize']},
+                                        realizedPnl: {result['realizedPnl']},
+                                        unrealizedPnl:{result['unrealizedPnl']}""")
         except Exception as e:
             self.cp.red(f'Exception when calling get_position: \n {e}')
 
@@ -214,7 +202,7 @@ class FtxClient:
                                            'clientId': clientId,
                                            })
             self.cp.green(
-                f"""{result['type']} order-market: {result['market']},size: {result['size']},price: {result['price']},side: {result['side']}""")
+                f"""{result['type'].upper()} order-market: {result['market']},size: {result['size']},price: {result['price']},side: {result['side']}""")
 
         except Exception as e:
             self.cp.red(f'Exception when calling place_order: \n {e}')
@@ -245,7 +233,7 @@ class FtxClient:
                                 {'market': market, 'side': side, 'triggerPrice': triggerPrice,
                                  'size': size, 'reduceOnly': reduce_only, 'type': type,
                                  'cancelLimitOnTrigger': cancel, 'orderPrice': limit_price, 'clientId': clientId})
-            self.cp.green(f"""{result['type']} order- market: {result['market']},size: {result['size']},triggerPrice: {result['triggerPrice']}, limitPrice: {result['orderPrice']},side: {result['side']},reduceOnly: {result['reduceOnly']},orderType: {result['orderType']}""")
+            self.cp.green(f"""{result['type'].upper()} order- market: {result['market']},size: {result['size']},triggerPrice: {result['triggerPrice']}, limitPrice: {result['orderPrice']},side: {result['side']},reduceOnly: {result['reduceOnly']},orderType: {result['orderType']}""")
 
         except Exception as e:
             self.cp.red(
@@ -260,7 +248,7 @@ class FtxClient:
 
             side = currCommand[0] if len(currCommand) > 0 else None
             self.orderSide = side
-            size = currCommand[1] if len(currCommand) > 1 else None
+            size = float(currCommand[1]) if len(currCommand) > 1 else 0
 
             if len(currCommand) > 2:
                 if "@" in currCommand[2]:
@@ -273,7 +261,7 @@ class FtxClient:
             type = "limit" if len(currCommand) > 2 else "market"
             self.cp.green(f'{side},{size},{price},{type}')
             if size:
-                if size < self.fatFinger:
+                if float(size) < float(self.fatFinger):
 
                     if price and type == "limit":
 
@@ -298,7 +286,6 @@ class FtxClient:
     def place_conditional_order_cleanup(self, currCommand):
         """Setting proper type name to send"""
 
-        self.cp.red(f'{currCommand}')
         try:
             type = currCommand[0] if len(currCommand) > 0 else None
             if type == "tp":
@@ -318,7 +305,7 @@ class FtxClient:
                 price = None
 
             """ Assign command to limit price stops"""
-            if len(currCommand) > 5:
+            if len(currCommand) > 4:
                 if "@" in currCommand[4]:
                     limitPrice = currCommand[4].replace('@', '')
                 else:
@@ -339,9 +326,8 @@ class FtxClient:
                 self.cp.red(
                     'cleanup conditional orderSide not assign correctly')
 
-            self.cp.red(f'{type},{size},{price},{side}')
             """Sending market or limit conditional order"""
-            if size and size < self.fatFinger:
+            if size and float(size) < float(self.fatFinger):
                 if price:
                     if limitPrice:
                         self.place_conditional_order(
