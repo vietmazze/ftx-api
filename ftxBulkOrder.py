@@ -12,7 +12,7 @@ import urllib
 from typing import Optional, Dict, Any, List
 from colorprint import ColorPrint
 from colorama import Fore, Back, Style, init
-path = './keys.env'
+
 load_dotenv(dotenv_path=path, verbose=True)
 
 logging.basicConfig(level=logging.INFO, format=(
@@ -24,9 +24,9 @@ class FtxClient:
 
     def __init__(self, subaccount_name=None) -> None:
         self._session = Session()
-        self._api_key = os.getenv('FTX_HUNTER_KEY')
-        self._api_secret = os.getenv('FTX_HUNTER_SECRET')
-        self._subaccount_name = "hunter-api"
+        self._api_key = os.getenv('')
+        self._api_secret = os.getenv('')
+        self._subaccount_name = ""
         self.cp = ColorPrint()
         self.market = None
         self.orderSide = None
